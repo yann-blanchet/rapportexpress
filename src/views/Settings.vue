@@ -92,6 +92,53 @@
 
           <div class="divider"></div>
 
+          <!-- Auto Sync Settings -->
+          <div>
+            <div class="form-control mb-4">
+              <label class="label cursor-pointer">
+                <span class="label-text">
+                  <div>
+                    <div class="font-medium">Automatic Sync</div>
+                    <div class="text-xs text-base-content/60">Automatically sync data to cloud</div>
+                  </div>
+                </span>
+                <input 
+                  type="checkbox" 
+                  class="toggle toggle-primary" 
+                  v-model="autoSyncEnabled"
+                  @change="saveAutoSyncSettings"
+                />
+              </label>
+            </div>
+
+            <div v-if="autoSyncEnabled" class="form-control mb-4">
+              <label class="label">
+                <span class="label-text">Sync Interval</span>
+              </label>
+              <select 
+                v-model.number="syncIntervalMinutes" 
+                @change="saveSyncInterval"
+                class="select select-bordered"
+              >
+                <option :value="0.5">30 seconds</option>
+                <option :value="1">1 minute</option>
+                <option :value="2">2 minutes</option>
+                <option :value="5">5 minutes</option>
+                <option :value="10">10 minutes</option>
+                <option :value="15">15 minutes</option>
+                <option :value="30">30 minutes</option>
+                <option :value="60">1 hour</option>
+              </select>
+              <div class="label">
+                <span class="label-text-alt text-base-content/60">
+                  Next sync in: {{ nextSyncIn }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
           <div>
             <p class="mb-2">Export all data as JSON backup</p>
             <button @click="exportData" class="btn btn-secondary">
@@ -140,7 +187,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { db } from '../db/indexeddb'
 import { supabase, syncInterventionToCloud, syncChecklistItemsToCloud, syncPhotoToCloud, syncCommentToCloud } from '../services/supabase'
 
@@ -161,6 +208,35 @@ const stats = ref({
   completed: 0,
   inProgress: 0,
   notSynced: 0
+})
+
+// Auto sync settings
+const autoSyncEnabled = ref(true)
+const syncIntervalMinutes = ref(5)
+const lastSyncTime = ref(null)
+let syncTimeInterval = null
+
+// Compute next sync time display
+const nextSyncIn = computed(() => {
+  if (!autoSyncEnabled.value || !lastSyncTime.value) {
+    return 'N/A'
+  }
+  
+  const intervalMs = syncIntervalMinutes.value * 60 * 1000
+  const elapsed = Date.now() - lastSyncTime.value
+  const remaining = Math.max(0, intervalMs - elapsed)
+  
+  if (remaining === 0) {
+    return 'Now'
+  }
+  
+  const minutes = Math.floor(remaining / 60000)
+  const seconds = Math.floor((remaining % 60000) / 1000)
+  
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`
+  }
+  return `${seconds}s`
 })
 
 function loadProfile() {
@@ -185,6 +261,48 @@ function loadPdfSettings() {
 function savePdfSettings() {
   localStorage.setItem('pdfSettings', JSON.stringify(pdfSettings.value))
   alert('PDF settings saved!')
+}
+
+function loadAutoSyncSettings() {
+  const enabled = localStorage.getItem('autoSyncEnabled')
+  autoSyncEnabled.value = enabled !== 'false' // Default: enabled
+  
+  const interval = localStorage.getItem('syncInterval')
+  if (interval) {
+    const intervalMs = parseInt(interval, 10)
+    syncIntervalMinutes.value = intervalMs / (60 * 1000)
+  } else {
+    // Default: 5 minutes
+    syncIntervalMinutes.value = 5
+  }
+  
+  const lastSync = localStorage.getItem('lastSyncTime')
+  if (lastSync) {
+    lastSyncTime.value = parseInt(lastSync, 10)
+  }
+}
+
+function saveAutoSyncSettings() {
+  localStorage.setItem('autoSyncEnabled', autoSyncEnabled.value.toString())
+  
+  // Restart auto sync with new settings
+  if (typeof window.restartAutoSync === 'function') {
+    window.restartAutoSync()
+  }
+  
+  alert('Auto sync settings saved!')
+}
+
+function saveSyncInterval() {
+  const intervalMs = syncIntervalMinutes.value * 60 * 1000
+  localStorage.setItem('syncInterval', intervalMs.toString())
+  
+  // Restart auto sync with new interval
+  if (typeof window.restartAutoSync === 'function') {
+    window.restartAutoSync()
+  }
+  
+  alert('Sync interval updated!')
 }
 
 async function loadStats() {
@@ -305,13 +423,28 @@ function updateOnlineStatus() {
 onMounted(() => {
   loadProfile()
   loadPdfSettings()
+  loadAutoSyncSettings()
   loadStats()
   window.addEventListener('online', updateOnlineStatus)
   window.addEventListener('offline', updateOnlineStatus)
+  
+  // Update last sync time display periodically
+  syncTimeInterval = setInterval(() => {
+    const lastSync = localStorage.getItem('lastSyncTime')
+    if (lastSync) {
+      lastSyncTime.value = parseInt(lastSync, 10)
+    }
+  }, 1000)
 })
 
 onUnmounted(() => {
   window.removeEventListener('online', updateOnlineStatus)
   window.removeEventListener('offline', updateOnlineStatus)
+  
+  // Clean up interval
+  if (syncTimeInterval) {
+    clearInterval(syncTimeInterval)
+    syncTimeInterval = null
+  }
 })
 </script>

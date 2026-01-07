@@ -1,17 +1,18 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
-import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig({
-  plugins: [
-    vue(),
-    VitePWA({
+export default defineConfig(async ({ mode }) => {
+  console.log(`[Vite Config] Mode: ${mode}, PWA will be ${mode === 'production' ? 'enabled' : 'disabled'}`)
+  
+  const plugins = [vue()]
+  
+  // Only enable PWA in production to avoid dev mode reload issues
+  if (mode === 'production') {
+    // Dynamic import only in production to avoid loading in dev mode
+    const { VitePWA } = await import('vite-plugin-pwa')
+    plugins.push(VitePWA({
       registerType: 'autoUpdate',
-      devOptions: {
-        enabled: true,
-        type: 'module'
-      },
       includeAssets: ['icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'RapportExpress - Field Technician App',
@@ -69,11 +70,32 @@ export default defineConfig({
           }
         ]
       }
-    })
-  ],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
+    }))
+  }
+  
+  return {
+    plugins,
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+      },
     },
-  },
+    server: {
+      hmr: false, // Completely disable HMR to prevent reloads
+      watch: {
+        // Ignore certain files that might trigger unnecessary reloads
+        ignored: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/dev-dist/**', '**/clear-sw.html', '**/*.log']
+      },
+      // Disable automatic page reload on errors
+      strictPort: false
+    },
+    // Disable automatic reload on build errors
+    build: {
+      watch: null
+    },
+    // Disable HMR in dev mode if it's causing issues
+    optimizeDeps: {
+      exclude: []
+    }
+  }
 })

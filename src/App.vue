@@ -1,7 +1,11 @@
 <template>
-  <div :class="['min-h-screen bg-base-200 safe-area-bottom', shouldShowMenu ? 'pb-24' : 'pb-4']">
+  <div :class="['min-h-screen bg-base-200 safe-area-bottom', shouldShowMenu ? 'pb-16' : 'pb-4']">
     <main class="container mx-auto p-4">
-      <router-view />
+      <router-view v-slot="{ Component, route }">
+        <keep-alive :include="['Dashboard']">
+          <component :is="Component" :key="route.path" />
+        </keep-alive>
+      </router-view>
     </main>
     
     <!-- Bottom Menu Bar - Mobile App Style -->
@@ -13,11 +17,11 @@
       <div class="absolute inset-0 bg-base-100/95 backdrop-blur-xl border-t border-base-300/50"></div>
       
       <!-- Content -->
-      <div class="relative flex items-center justify-around max-w-md mx-auto px-6 py-3">
+      <div class="relative flex items-center justify-around max-w-md mx-auto px-6 py-2">
         <!-- Dashboard -->
         <router-link
           to="/"
-          class="flex flex-col items-center justify-center gap-1.5 px-5 py-2 rounded-2xl transition-all duration-200 min-w-[70px] relative group"
+          class="flex flex-col items-center justify-center gap-1 px-4 py-1.5 rounded-xl transition-all duration-200 min-w-[60px] relative group"
           :class="$route.path === '/' || $route.path.startsWith('/interventions/') && $route.path !== '/interventions/new' 
             ? 'text-primary scale-105' 
             : 'text-base-content/60 active:scale-95'"
@@ -29,7 +33,7 @@
           ></div>
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
-            class="h-6 w-6 relative z-10 transition-transform duration-200"
+            class="h-5 w-5 relative z-10 transition-transform duration-200"
             :class="$route.path === '/' || ($route.path.startsWith('/interventions/') && $route.path !== '/interventions/new') ? 'scale-110' : ''"
             fill="none" 
             viewBox="0 0 24 24" 
@@ -42,14 +46,14 @@
         </router-link>
 
         <!-- FAB - Create Intervention -->
-        <div class="flex-1 flex justify-center -mt-10 relative z-20">
+        <div class="flex-1 flex justify-center -mt-8 relative z-20">
           <router-link
             to="/interventions/new"
-            class="btn btn-primary btn-circle w-16 h-16 shadow-2xl hover:shadow-primary/50 transition-all duration-300 hover:scale-110 active:scale-95 border-4 border-base-100"
+            class="btn btn-primary btn-circle w-14 h-14 shadow-xl hover:shadow-primary/50 transition-all duration-300 hover:scale-110 active:scale-95 border-4 border-base-100"
           >
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
-              class="h-7 w-7" 
+              class="h-6 w-6" 
               fill="none" 
               viewBox="0 0 24 24" 
               stroke="currentColor"
@@ -63,7 +67,7 @@
         <!-- Settings -->
         <router-link
           to="/settings"
-          class="flex flex-col items-center justify-center gap-1.5 px-5 py-2 rounded-2xl transition-all duration-200 min-w-[70px] relative group"
+          class="flex flex-col items-center justify-center gap-1 px-4 py-1.5 rounded-xl transition-all duration-200 min-w-[60px] relative group"
           :class="$route.path === '/settings' 
             ? 'text-primary scale-105' 
             : 'text-base-content/60 active:scale-95'"
@@ -75,7 +79,7 @@
           ></div>
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
-            class="h-6 w-6 relative z-10 transition-transform duration-200"
+            class="h-5 w-5 relative z-10 transition-transform duration-200"
             :class="$route.path === '/settings' ? 'scale-110' : ''"
             fill="none" 
             viewBox="0 0 24 24" 
@@ -95,8 +99,12 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAutoSync } from './composables/useAutoSync'
 
 const route = useRoute()
+
+// Initialize automatic sync
+useAutoSync()
 
 // Hide bottom menu on intervention pages (create, edit, detail)
 const shouldShowMenu = computed(() => {

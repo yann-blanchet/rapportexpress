@@ -1,0 +1,183 @@
+import { ref, onMounted, onUnmounted } from 'vue'
+import { db } from '../db/indexeddb'
+import { syncInterventionToCloud, syncChecklistItemsToCloud, syncPhotoToCloud, syncCommentToCloud } from '../services/supabase'
+
+let syncInterval = null
+let isSyncing = false
+let isInitialized = false
+
+// Default sync interval: 5 minutes (300000 ms)
+const DEFAULT_SYNC_INTERVAL = 5 * 60 * 1000
+
+/**
+ * Get sync interval from localStorage or return default
+ */
+function getSyncInterval() {
+  const saved = localStorage.getItem('syncInterval')
+  if (saved) {
+    const interval = parseInt(saved, 10)
+    // Validate: between 30 seconds and 1 hour
+    if (interval >= 30000 && interval <= 3600000) {
+      return interval
+    }
+  }
+  return DEFAULT_SYNC_INTERVAL
+}
+
+/**
+ * Perform automatic sync of unsynced interventions
+ */
+async function performAutoSync() {
+  // Don't sync if already syncing or offline
+  if (isSyncing || !navigator.onLine) {
+    return
+  }
+
+  try {
+    isSyncing = true
+    const unsynced = await db.interventions.where('synced').equals(0).toArray()
+    
+    if (unsynced.length === 0) {
+      return // Nothing to sync
+    }
+
+    console.log(`[Auto Sync] Syncing ${unsynced.length} intervention(s)...`)
+    
+    for (const intervention of unsynced) {
+      try {
+        await syncInterventionToCloud(intervention)
+        
+        // Sync related data
+        const checklistItems = await db.checklist_items
+          .where('intervention_id').equals(intervention.id)
+          .toArray()
+        if (checklistItems.length > 0) {
+          await syncChecklistItemsToCloud(checklistItems)
+        }
+        
+        const photos = await db.photos
+          .where('intervention_id').equals(intervention.id)
+          .toArray()
+        for (const photo of photos) {
+          if (!photo.url_cloud) {
+            await syncPhotoToCloud(photo)
+          }
+        }
+        
+        const comments = await db.comments
+          .where('intervention_id').equals(intervention.id)
+          .toArray()
+        for (const comment of comments) {
+          await syncCommentToCloud(comment)
+        }
+        
+        intervention.synced = true
+        await db.interventions.put(intervention)
+      } catch (error) {
+        console.error(`[Auto Sync] Error syncing intervention ${intervention.id}:`, error)
+        // Continue with next intervention - don't let errors crash the app
+      }
+    }
+    
+    console.log(`[Auto Sync] Completed`)
+    
+    // Update last sync time
+    const now = Date.now()
+    localStorage.setItem('lastSyncTime', now.toString())
+  } catch (error) {
+    console.error('[Auto Sync] Error during sync:', error)
+    // Make sure we don't crash the app - errors should be logged, not cause reloads
+  } finally {
+    isSyncing = false
+  }
+}
+
+/**
+ * Start automatic periodic sync
+ */
+function startAutoSync() {
+  // Clear existing interval if any
+  if (syncInterval) {
+    clearInterval(syncInterval)
+  }
+
+  // Check if auto sync is enabled
+  const autoSyncEnabled = localStorage.getItem('autoSyncEnabled') !== 'false' // Default: enabled
+  
+  if (!autoSyncEnabled) {
+    return
+  }
+
+  const interval = getSyncInterval()
+  
+  // Perform initial sync after a short delay
+  setTimeout(() => {
+    performAutoSync()
+  }, 2000) // Wait 2 seconds after app load
+  
+  // Set up periodic sync
+  syncInterval = setInterval(() => {
+    performAutoSync()
+  }, interval)
+  
+  console.log(`[Auto Sync] Started with interval: ${interval / 1000}s`)
+}
+
+/**
+ * Stop automatic periodic sync
+ */
+function stopAutoSync() {
+  if (syncInterval) {
+    clearInterval(syncInterval)
+    syncInterval = null
+    console.log('[Auto Sync] Stopped')
+  }
+}
+
+/**
+ * Restart automatic sync (useful when interval changes)
+ */
+function restartAutoSync() {
+  stopAutoSync()
+  startAutoSync()
+}
+
+/**
+ * Composable for automatic sync
+ */
+export function useAutoSync() {
+  onMounted(() => {
+    // Only initialize once, even if component re-mounts
+    if (isInitialized) {
+      return
+    }
+    
+    isInitialized = true
+    startAutoSync()
+    
+    // Expose restartAutoSync globally for Settings page
+    window.restartAutoSync = restartAutoSync
+    
+    // Listen for online/offline events (only add once)
+    if (!window.__autoSyncOnlineHandler) {
+      window.__autoSyncOnlineHandler = () => {
+        console.log('[Auto Sync] Connection restored, syncing...')
+        performAutoSync()
+      }
+      window.addEventListener('online', window.__autoSyncOnlineHandler)
+    }
+  })
+
+  onUnmounted(() => {
+    // Don't stop sync on unmount since App.vue should stay mounted
+    // Only clean up if this is truly being unmounted
+  })
+
+  return {
+    performAutoSync,
+    startAutoSync,
+    stopAutoSync,
+    restartAutoSync,
+    getSyncInterval
+  }
+}

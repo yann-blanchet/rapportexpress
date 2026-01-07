@@ -2,5 +2,32 @@ import { createApp } from 'vue'
 import './style.css'
 import App from './App.vue'
 import router from './router'
+import './utils/reloadDiagnostics.js'
 
-createApp(App).use(router).mount('#app')
+// Global error handler to catch unhandled errors
+window.addEventListener('error', (event) => {
+  console.error('[Main] Global error caught:', {
+    message: event.message,
+    filename: event.filename,
+    lineno: event.lineno,
+    error: event.error,
+    stack: event.error?.stack
+  })
+  // Prevent the error from causing a reload
+  event.preventDefault()
+  return false
+}, true) // Use capture phase
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('[Main] Unhandled promise rejection:', {
+    reason: event.reason,
+    stack: event.reason?.stack
+  })
+  // Prevent default to avoid page reload on unhandled rejections
+  event.preventDefault()
+  return false
+})
+
+const app = createApp(App)
+app.use(router)
+app.mount('#app')

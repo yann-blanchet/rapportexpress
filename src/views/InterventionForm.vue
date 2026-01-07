@@ -46,11 +46,38 @@
             <label class="label">
               <span class="label-text">Status</span>
             </label>
-            <select v-model="form.status" class="select select-bordered">
-              <option value="To Do">To Do</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Completed">Completed</option>
-            </select>
+            <div class="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                @click="form.status = 'To Do'"
+                :class="[
+                  'badge badge-lg cursor-pointer transition-all px-4 py-2',
+                  form.status === 'To Do' ? 'badge-info' : 'badge-outline'
+                ]"
+              >
+                To Do
+              </button>
+              <button
+                type="button"
+                @click="form.status = 'In Progress'"
+                :class="[
+                  'badge badge-lg cursor-pointer transition-all px-4 py-2',
+                  form.status === 'In Progress' ? 'badge-warning' : 'badge-outline'
+                ]"
+              >
+                In Progress
+              </button>
+              <button
+                type="button"
+                @click="form.status = 'Completed'"
+                :class="[
+                  'badge badge-lg cursor-pointer transition-all px-4 py-2',
+                  form.status === 'Completed' ? 'badge-success' : 'badge-outline'
+                ]"
+              >
+                Completed
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -229,6 +256,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { db } from '../db/indexeddb'
 import { generateUUID } from '../utils/uuid'
 import { syncInterventionToCloud, syncChecklistItemsToCloud, uploadPhotoToCloud, syncPhotoToCloud, syncCommentToCloud } from '../services/supabase'
+import { compressImage } from '../utils/imageCompression'
 
 const route = useRoute()
 const router = useRouter()
@@ -422,18 +450,25 @@ async function saveIntervention() {
         await syncChecklistItemsToCloud(itemsToSync)
       }
       
-      // Upload photos (convert base64 back to File for upload)
+      // Upload photos (convert base64 back to File, compress, then upload)
       for (const photo of photos.value) {
         if (photo.url_local && !photo.url_cloud) {
           try {
-            // Convert base64 data URL back to File object for upload
+            // Convert base64 data URL back to File object
             const response = await fetch(photo.url_local)
             const blob = await response.blob()
-            const file = new File([blob], photo.file_name || `photo_${photo.id}.jpg`, { 
+            const originalFile = new File([blob], photo.file_name || `photo_${photo.id}.jpg`, { 
               type: photo.file_type || 'image/jpeg' 
             })
             
-            const cloudUrl = await uploadPhotoToCloud(file, interventionId, photo.id)
+            // Compress image before uploading to reduce storage and bandwidth
+            const compressedFile = await compressImage(originalFile, {
+              maxSizeMB: 1, // Max 1MB per image
+              maxWidthOrHeight: 1920, // Max dimension
+              initialQuality: 0.8 // 80% quality
+            })
+            
+            const cloudUrl = await uploadPhotoToCloud(compressedFile, interventionId, photo.id)
             
             // Create clean photo object with updated cloud URL
             const cleanPhoto = {
