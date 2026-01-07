@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Converter - SVG to PNG</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            margin: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <h1>SVG to PNG Icon Converter</h1>
+    <p>This tool converts your SVG icon to PNG format for PWA.</p>
+    
+    <div>
+        <h2>Step 1: Load your SVG</h2>
+        <input type="file" id="svgFile" accept=".svg" />
+    </div>
+    
+    <div>
+        <h2>Step 2: Preview</h2>
+        <canvas id="preview192" width="192" height="192"></canvas>
+        <canvas id="preview512" width="512" height="512"></canvas>
+    </div>
+    
+    <div>
+        <h2>Step 3: Download</h2>
+        <button onclick="downloadIcon(192)">Download icon-192.png</button>
+        <button onclick="downloadIcon(512)">Download icon-512.png</button>
+    </div>
+
+    <script>
+        const svgFileInput = document.getElementById('svgFile');
+        const preview192 = document.getElementById('preview192');
+        const preview512 = document.getElementById('preview512');
+        let svgContent = '';
+
+        svgFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    svgContent = event.target.result;
+                    renderIcons();
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        function renderIcons() {
+            renderIcon(preview192, 192);
+            renderIcon(preview512, 512);
+        }
+
+        function renderIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            const svgBlob = new Blob([svgContent], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(svgBlob);
+            
+            img.onload = () => {
+                ctx.clearRect(0, 0, size, size);
+                ctx.drawImage(img, 0, 0, size, size);
+                URL.revokeObjectURL(url);
+            };
+            
+            img.src = url;
+        }
+
+        function downloadIcon(size) {
+            const canvas = size === 192 ? preview192 : preview512;
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `icon-${size}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        // Load default SVG if it exists
+        fetch('/icon.svg')
+            .then(res => res.text())
+            .then(svg => {
+                svgContent = svg;
+                renderIcons();
+            })
+            .catch(() => {
+                console.log('No default icon.svg found');
+            });
+    </script>
+</body>
+</html>

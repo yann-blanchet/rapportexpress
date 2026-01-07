@@ -17,8 +17,10 @@ A Vue.js application for independent field technicians to manage interventions w
 ### 1. Install Dependencies
 
 ```bash
-npm install
+npm install --legacy-peer-deps
 ```
+
+**Note**: The `--legacy-peer-deps` flag is needed because `vite-plugin-pwa` hasn't fully updated its peer dependencies for Vite 7 yet, but it works fine.
 
 ### 2. Supabase Setup
 
@@ -124,6 +126,15 @@ npm run build
 ```
 
 The built files will be in the `dist` directory.
+
+## PWA (Progressive Web App)
+
+The app is configured as a PWA and can be installed on devices. See `PWA_SETUP.md` for:
+- Icon generation instructions
+- Installation steps
+- Service worker configuration
+
+**Note**: You need to create app icons (`icon-192.png` and `icon-512.png`) in the `public/` directory before building for production.
 
 ## License
 
