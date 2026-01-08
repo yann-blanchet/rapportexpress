@@ -97,17 +97,36 @@ function startAutoSync() {
   setTimeout(async () => {
     try {
       // First, pull data from cloud
-      await syncFromCloud(db)
+      const fromCloud = await syncFromCloud(db)
       // Then, push local unsynced data to cloud
       await performAutoSync()
+      
+      // Notify components that initial sync completed
+      window.dispatchEvent(new CustomEvent('syncCompleted', { 
+        detail: { fromCloud, toCloud: { interventions: 0 } } 
+      }))
     } catch (error) {
       console.error('[Auto Sync] Initial sync error:', error)
     }
   }, 2000) // Wait 2 seconds after app load
   
-  // Set up periodic sync (only pushes local to cloud)
-  syncInterval = setInterval(() => {
-    performAutoSync()
+  // Set up periodic sync (pulls from cloud, then pushes local to cloud)
+  syncInterval = setInterval(async () => {
+    try {
+      // First pull from cloud (incremental - only new updates)
+      const fromCloud = await syncFromCloud(db)
+      // Then push local unsynced data to cloud
+      await performAutoSync()
+      
+      // Notify components that sync completed
+      if (fromCloud.interventions > 0 || fromCloud.photos > 0) {
+        window.dispatchEvent(new CustomEvent('syncCompleted', { 
+          detail: { fromCloud, toCloud: { interventions: 0 } } 
+        }))
+      }
+    } catch (error) {
+      console.error('[Auto Sync] Periodic sync error:', error)
+    }
   }, interval)
   
 }
@@ -148,8 +167,17 @@ export function useAutoSync() {
     
     // Listen for online/offline events (only add once)
     if (!window.__autoSyncOnlineHandler) {
-      window.__autoSyncOnlineHandler = () => {
-        performAutoSync()
+      window.__autoSyncOnlineHandler = async () => {
+        try {
+          const fromCloud = await syncFromCloud(db)
+          await performAutoSync()
+          // Notify components that sync completed
+          window.dispatchEvent(new CustomEvent('syncCompleted', { 
+            detail: { fromCloud, toCloud: { interventions: 0 } } 
+          }))
+        } catch (error) {
+          console.error('[Auto Sync] Online sync error:', error)
+        }
       }
       window.addEventListener('online', window.__autoSyncOnlineHandler)
     }

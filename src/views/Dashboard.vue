@@ -268,12 +268,24 @@ function updateDateFilterFromPeriod() {
   }
 }
 
+// Listen for sync completion events to refresh data
+function handleSyncCompleted() {
+  loadInterventions()
+}
+
 onMounted(() => {
   loadInterventions()
+  // Listen for sync completion events
+  window.addEventListener('syncCompleted', handleSyncCompleted)
 })
 
 // Refresh data when component is activated (user navigates back to Dashboard)
 onActivated(() => {
   loadInterventions()
+})
+
+onUnmounted(() => {
+  // Clean up event listener
+  window.removeEventListener('syncCompleted', handleSyncCompleted)
 })
 </script>

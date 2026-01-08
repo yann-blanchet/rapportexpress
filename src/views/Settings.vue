@@ -189,7 +189,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { db } from '../db/indexeddb'
-import { supabase, syncInterventionToCloud, syncPhotoToCloud } from '../services/supabase'
+import { supabase, syncInterventionToCloud, syncPhotoToCloud, syncFromCloud } from '../services/supabase'
 
 const profile = ref({
   name: '',
@@ -327,7 +327,12 @@ async function manualSync() {
 
   syncing.value = true
   try {
+    // First, pull data from Supabase
+    const fromCloud = await syncFromCloud(db)
+    
+    // Then, push local unsynced data to cloud
     const unsynced = await db.interventions.where('synced').equals(0).toArray()
+    let syncedToCloud = 0
     
     for (const intervention of unsynced) {
       try {
@@ -339,19 +344,39 @@ async function manualSync() {
           .where('intervention_id').equals(intervention.id)
           .toArray()
         for (const photo of photos) {
-          if (photo.url_cloud) {
+          if (!photo.url_cloud) {
             await syncPhotoToCloud(photo)
           }
         }
         
         intervention.synced = true
         await db.interventions.put(intervention)
+        syncedToCloud++
       } catch (error) {
         console.error(`Error syncing intervention ${intervention.id}:`, error)
       }
     }
     
-    alert(`Sync completed! ${unsynced.length} intervention(s) synced.`)
+    // Show sync results
+    const messages = []
+    if (fromCloud.interventions > 0 || fromCloud.photos > 0) {
+      messages.push(`Synced from cloud: ${fromCloud.interventions} intervention(s), ${fromCloud.photos} photo(s)`)
+    }
+    if (syncedToCloud > 0) {
+      messages.push(`Synced to cloud: ${syncedToCloud} intervention(s)`)
+    }
+    
+    if (messages.length > 0) {
+      alert(`Sync completed!\n\n${messages.join('\n')}`)
+    } else {
+      alert('Sync completed! No changes to sync.')
+    }
+    
+    // Notify components that sync completed
+    window.dispatchEvent(new CustomEvent('syncCompleted', { 
+      detail: { fromCloud, toCloud: { interventions: syncedToCloud } } 
+    }))
+    
     await loadStats()
   } catch (error) {
     console.error('Error during sync:', error)

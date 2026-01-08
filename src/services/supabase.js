@@ -141,17 +141,49 @@ export async function deleteInterventionFromCloud(interventionId) {
   }
 }
 
-// Pull data from Supabase and sync to local IndexedDB
+// Get last sync timestamp from localStorage
+function getLastSyncTimestamp(db) {
+  const lastSync = localStorage.getItem('lastSyncFromCloud')
+  
+  // Check if database is empty - if so, do a full sync
+  return db.interventions.count().then(count => {
+    if (count === 0) {
+      // Database is empty, reset lastSync to fetch everything
+      localStorage.removeItem('lastSyncFromCloud')
+      return new Date(0).toISOString()
+    }
+    
+    if (lastSync) {
+      return new Date(lastSync).toISOString()
+    }
+    // If no last sync, return a date far in the past to sync everything
+    return new Date(0).toISOString()
+  })
+}
+
+// Store last sync timestamp
+function setLastSyncTimestamp() {
+  localStorage.setItem('lastSyncFromCloud', new Date().toISOString())
+}
+
+// Pull data from Supabase and sync to local IndexedDB (incremental sync)
+// Returns: { interventions: count, photos: count }
 export async function syncFromCloud(db) {
   try {
     if (!navigator.onLine) {
-      return
+      return { interventions: 0, photos: 0 }
     }
     
-    // Fetch interventions from Supabase
+    // Check if database is empty and get last sync timestamp
+    const lastSync = await getLastSyncTimestamp(db)
+    let interventionsSynced = 0
+    let photosSynced = 0
+    
+    // Fetch only interventions updated since last sync
     const { data: cloudInterventions, error: interventionsError } = await supabase
       .from('interventions')
       .select('*')
+      .gte('updated_at', lastSync) // Only fetch records updated since last sync
       .order('updated_at', { ascending: false })
 
     if (interventionsError) {
@@ -159,47 +191,65 @@ export async function syncFromCloud(db) {
       throw interventionsError
     }
 
-    if (!cloudInterventions || cloudInterventions.length === 0) {
-      return
-    }
-
-    // Sync each intervention to local DB
-    for (const cloudIntervention of cloudInterventions) {
-      try {
-        const localIntervention = await db.interventions.get(cloudIntervention.id)
-        
-        // If local doesn't exist, or cloud is newer, use cloud data
-        const shouldUseCloud = !localIntervention || 
-          new Date(cloudIntervention.updated_at) > new Date(localIntervention.updated_at || 0)
-        
-        if (shouldUseCloud) {
-          await db.interventions.put({
-            id: cloudIntervention.id,
-            client_name: cloudIntervention.client_name,
-            date: cloudIntervention.date,
-            status: cloudIntervention.status,
-            created_at: cloudIntervention.created_at,
-            updated_at: cloudIntervention.updated_at,
-            synced: true,
-            user_id: cloudIntervention.user_id,
-            checklist_items: Array.isArray(cloudIntervention.checklist_items) 
-              ? cloudIntervention.checklist_items 
-              : [],
-            comments: Array.isArray(cloudIntervention.comments) 
-              ? cloudIntervention.comments 
-              : []
-          })
+    if (cloudInterventions && cloudInterventions.length > 0) {
+      // Sync each intervention to local DB with conflict resolution
+      for (const cloudIntervention of cloudInterventions) {
+        try {
+          const localIntervention = await db.interventions.get(cloudIntervention.id)
+          const cloudUpdated = new Date(cloudIntervention.updated_at)
+          const localUpdated = localIntervention ? new Date(localIntervention.updated_at || 0) : new Date(0)
+          
+          // Conflict resolution: Use newer version (last write wins)
+          // If local is newer and unsynced, we'll push it to cloud in performAutoSync
+          // If cloud is newer or equal, use cloud data
+          if (cloudUpdated >= localUpdated) {
+            await db.interventions.put({
+              id: cloudIntervention.id,
+              client_name: cloudIntervention.client_name,
+              date: cloudIntervention.date,
+              status: cloudIntervention.status,
+              created_at: cloudIntervention.created_at,
+              updated_at: cloudIntervention.updated_at,
+              synced: true, // Mark as synced since we got it from cloud
+              user_id: cloudIntervention.user_id,
+              checklist_items: Array.isArray(cloudIntervention.checklist_items) 
+                ? cloudIntervention.checklist_items 
+                : [],
+              comments: Array.isArray(cloudIntervention.comments) 
+                ? cloudIntervention.comments 
+                : []
+            })
+            interventionsSynced++
+          } else {
+            // Local is newer - keep local, but mark for sync to cloud
+            // This will be handled by performAutoSync
+            if (localIntervention && !localIntervention.synced) {
+              // Already marked as unsynced, will be pushed to cloud
+            }
+          }
+        } catch (error) {
+          console.error(`[Sync From Cloud] Error syncing intervention ${cloudIntervention.id}:`, error)
         }
-      } catch (error) {
-        console.error(`[Sync From Cloud] Error syncing intervention ${cloudIntervention.id}:`, error)
       }
     }
 
-    // Fetch photos from Supabase
-    const { data: cloudPhotos, error: photosError } = await supabase
+    // Check if database is empty to determine if we need full photo sync
+    const localInterventionCount = await db.interventions.count()
+    const isDatabaseEmpty = localInterventionCount === 0
+    
+    // Fetch photos - if database is empty, fetch all; otherwise limit to recent
+    // Note: Photos table might not have updated_at, so we use a simpler approach
+    // For efficiency, we could add updated_at to photos table in the future
+    let photosQuery = supabase
       .from('photos')
       .select('*')
       .order('taken_at', { ascending: false })
+    
+    if (!isDatabaseEmpty) {
+      photosQuery = photosQuery.limit(100) // Limit to recent photos for efficiency
+    }
+    
+    const { data: cloudPhotos, error: photosError } = await photosQuery
 
     if (photosError) {
       console.error('[Sync From Cloud] Error fetching photos:', photosError)
@@ -209,12 +259,11 @@ export async function syncFromCloud(db) {
       for (const cloudPhoto of cloudPhotos) {
         try {
           const localPhoto = await db.photos.get(cloudPhoto.id)
+          const cloudTaken = new Date(cloudPhoto.taken_at)
+          const localTaken = localPhoto ? new Date(localPhoto.taken_at || 0) : new Date(0)
           
-          // If local doesn't exist, or cloud is newer, use cloud data
-          const shouldUseCloud = !localPhoto || 
-            new Date(cloudPhoto.taken_at) > new Date(localPhoto.taken_at || 0)
-          
-          if (shouldUseCloud) {
+          // Use newer version
+          if (cloudTaken >= localTaken) {
             await db.photos.put({
               id: cloudPhoto.id,
               intervention_id: cloudPhoto.intervention_id,
@@ -223,12 +272,18 @@ export async function syncFromCloud(db) {
               description: cloudPhoto.description || '',
               taken_at: cloudPhoto.taken_at
             })
+            photosSynced++
           }
         } catch (error) {
           console.error(`[Sync From Cloud] Error syncing photo ${cloudPhoto.id}:`, error)
         }
       }
     }
+
+    // Update last sync timestamp after successful sync
+    setLastSyncTimestamp()
+
+    return { interventions: interventionsSynced, photos: photosSynced }
 
   } catch (error) {
     console.error('[Sync From Cloud] Error:', error)
