@@ -34,7 +34,7 @@
               'badge-info'
             ]"
           >
-            {{ intervention.status || 'To Do' }}
+            {{ intervention.status || 'In Progress' }}
           </div>
           <div v-if="!intervention.synced" class="badge badge-lg badge-error badge-outline" title="Not synced">
             Offline

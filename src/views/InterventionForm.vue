@@ -49,16 +49,6 @@
             <div class="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
-                @click="form.status = 'To Do'"
-                :class="[
-                  'badge badge-lg cursor-pointer transition-all px-4 py-2',
-                  form.status === 'To Do' ? 'badge-info' : 'badge-outline'
-                ]"
-              >
-                To Do
-              </button>
-              <button
-                type="button"
                 @click="form.status = 'In Progress'"
                 :class="[
                   'badge badge-lg cursor-pointer transition-all px-4 py-2',
@@ -267,7 +257,7 @@ const photoInput = ref(null)
 const form = ref({
   client_name: '',
   date: new Date().toISOString().slice(0, 16),
-  status: 'To Do'
+  status: 'In Progress'
 })
 
 const checklistItems = ref([])
@@ -284,7 +274,7 @@ async function loadIntervention() {
         form.value = {
           client_name: intervention.client_name || '',
           date: intervention.date ? new Date(intervention.date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
-          status: intervention.status || 'To Do'
+          status: intervention.status || 'In Progress'
         }
 
         // Load checklist items from JSONB column

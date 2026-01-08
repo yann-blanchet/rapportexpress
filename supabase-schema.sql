@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS interventions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   client_name TEXT NOT NULL,
   date TIMESTAMPTZ NOT NULL,
-  status TEXT NOT NULL DEFAULT 'To Do',
+  status TEXT NOT NULL DEFAULT 'In Progress',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   synced BOOLEAN DEFAULT false,

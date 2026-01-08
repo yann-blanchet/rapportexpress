@@ -46,21 +46,24 @@
         </router-link>
 
         <!-- FAB - Create Intervention -->
-        <div class="flex-1 flex justify-center -mt-8 relative z-20">
+        <div class="flex-1 flex justify-center relative z-20">
           <router-link
             to="/interventions/new"
-            class="btn btn-primary btn-circle w-14 h-14 shadow-xl hover:shadow-primary/50 transition-all duration-300 hover:scale-110 active:scale-95 border-4 border-base-100"
+            class="flex flex-col items-center justify-center gap-1"
           >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              class="h-6 w-6" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
-              stroke-width="3"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
+            <div class="btn btn-success btn-circle w-14 h-14 shadow-xl hover:shadow-success/50 transition-all duration-300 hover:scale-110 active:scale-95 border-4 border-base-100 flex items-center justify-center">
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                class="h-6 w-6" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+                stroke-width="3"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            <span class="text-[10px] font-medium text-base-content">New</span>
           </router-link>
         </div>
 
