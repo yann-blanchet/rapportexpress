@@ -236,7 +236,6 @@ async function loadInterventions() {
     loading.value = true
     const all = await db.interventions.toArray()
     interventions.value = all
-    console.log('[Dashboard] Loaded', all.length, 'interventions')
   } catch (error) {
     console.error('[Dashboard] Error loading interventions:', error)
     // Don't let errors cause the component to remount
@@ -270,17 +269,11 @@ function updateDateFilterFromPeriod() {
 }
 
 onMounted(() => {
-  console.log('[Dashboard] Component mounted')
   loadInterventions()
 })
 
 // Refresh data when component is activated (user navigates back to Dashboard)
 onActivated(() => {
-  console.log('[Dashboard] Component activated - refreshing data')
   loadInterventions()
-})
-
-onUnmounted(() => {
-  console.log('[Dashboard] Component unmounted')
 })
 </script>

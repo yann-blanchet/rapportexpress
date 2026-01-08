@@ -19,16 +19,13 @@ export async function compressImage(file, options = {}) {
   try {
     // Only compress if file is larger than 500KB
     if (file.size < 500 * 1024) {
-      console.log('Image is already small, skipping compression')
       return file
     }
 
-    console.log(`Compressing image: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`)
     
     const compressedFile = await imageCompression(file, defaultOptions)
     
     const compressionRatio = ((1 - compressedFile.size / file.size) * 100).toFixed(1)
-    console.log(`Compressed to: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB (${compressionRatio}% reduction)`)
     
     return compressedFile
   } catch (error) {

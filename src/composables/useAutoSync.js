@@ -41,8 +41,6 @@ async function performAutoSync() {
       return // Nothing to sync
     }
 
-    console.log(`[Auto Sync] Syncing ${unsynced.length} intervention(s)...`)
-    
     for (const intervention of unsynced) {
       try {
         // Sync intervention (includes checklist_items and comments as JSONB)
@@ -65,8 +63,6 @@ async function performAutoSync() {
         // Continue with next intervention - don't let errors crash the app
       }
     }
-    
-    console.log(`[Auto Sync] Completed`)
     
     // Update last sync time
     const now = Date.now()
@@ -114,7 +110,6 @@ function startAutoSync() {
     performAutoSync()
   }, interval)
   
-  console.log(`[Auto Sync] Started with interval: ${interval / 1000}s`)
 }
 
 /**
@@ -124,7 +119,6 @@ function stopAutoSync() {
   if (syncInterval) {
     clearInterval(syncInterval)
     syncInterval = null
-    console.log('[Auto Sync] Stopped')
   }
 }
 
@@ -155,7 +149,6 @@ export function useAutoSync() {
     // Listen for online/offline events (only add once)
     if (!window.__autoSyncOnlineHandler) {
       window.__autoSyncOnlineHandler = () => {
-        console.log('[Auto Sync] Connection restored, syncing...')
         performAutoSync()
       }
       window.addEventListener('online', window.__autoSyncOnlineHandler)

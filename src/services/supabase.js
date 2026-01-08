@@ -145,11 +145,8 @@ export async function deleteInterventionFromCloud(interventionId) {
 export async function syncFromCloud(db) {
   try {
     if (!navigator.onLine) {
-      console.log('[Sync From Cloud] Offline, skipping')
       return
     }
-
-    console.log('[Sync From Cloud] Starting...')
     
     // Fetch interventions from Supabase
     const { data: cloudInterventions, error: interventionsError } = await supabase
@@ -163,11 +160,8 @@ export async function syncFromCloud(db) {
     }
 
     if (!cloudInterventions || cloudInterventions.length === 0) {
-      console.log('[Sync From Cloud] No interventions in cloud')
       return
     }
-
-    console.log(`[Sync From Cloud] Found ${cloudInterventions.length} intervention(s) in cloud`)
 
     // Sync each intervention to local DB
     for (const cloudIntervention of cloudInterventions) {
@@ -211,8 +205,6 @@ export async function syncFromCloud(db) {
       console.error('[Sync From Cloud] Error fetching photos:', photosError)
       // Don't throw - photos are optional
     } else if (cloudPhotos && cloudPhotos.length > 0) {
-      console.log(`[Sync From Cloud] Found ${cloudPhotos.length} photo(s) in cloud`)
-      
       // Sync photos to local DB
       for (const cloudPhoto of cloudPhotos) {
         try {
@@ -238,7 +230,6 @@ export async function syncFromCloud(db) {
       }
     }
 
-    console.log('[Sync From Cloud] Completed')
   } catch (error) {
     console.error('[Sync From Cloud] Error:', error)
     throw error
