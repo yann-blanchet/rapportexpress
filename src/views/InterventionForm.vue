@@ -480,7 +480,7 @@ async function saveIntervention() {
       console.error('Error syncing to cloud (will sync later):', error)
     }
     
-    router.push(`/interventions/${interventionId}`)
+    router.push('/')
   } catch (error) {
     console.error('Error saving intervention:', error)
     alert('Error saving intervention. Please try again.')

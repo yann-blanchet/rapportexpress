@@ -115,7 +115,7 @@
         v-for="(intervention, index) in filteredInterventions"
         :key="intervention.id"
         class="bg-base-100 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer p-4"
-        @click="goToDetail(intervention.id)"
+        @click="goToDetail(intervention)"
         @contextmenu.prevent="showContextMenu($event, intervention)"
         @touchstart="handleTouchStart(intervention, $event)"
         @touchend="handleTouchEnd"
@@ -129,16 +129,21 @@
           <div class="flex items-center gap-2 flex-shrink-0">
             <span
               :class="[
-                'badge badge-sm font-medium',
+                'badge badge-sm font-medium border border-base-content px-3 py-2.5 h-8',
                 intervention.status === 'Completed' ? 'badge-success' :
                 'badge-warning'
               ]"
             >
               {{ intervention.status || 'In Progress' }}
             </span>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
+            <button
+              @click.stop="openActionSheet(intervention)"
+              class="btn btn-ghost btn-sm btn-circle p-0 min-h-0 h-8 w-8"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -179,6 +184,107 @@
       class="fixed inset-0 z-40"
       @click="contextMenu.show = false"
     ></div>
+
+    <!-- Action Bottom Sheet -->
+    <div
+      v-if="actionSheet.show"
+      class="fixed inset-0 z-[60] flex items-end"
+      @click="actionSheet.show = false"
+    >
+      <!-- Backdrop -->
+      <div class="absolute inset-0 bg-black/50" @click="actionSheet.show = false"></div>
+      
+      <!-- Sheet Content -->
+      <div
+        class="relative bg-base-100 rounded-t-3xl w-full shadow-2xl safe-area-bottom"
+        @click.stop
+      >
+        <div class="p-4">
+          <!-- Handle -->
+          <div class="w-12 h-1 bg-base-300 rounded-full mx-auto mb-4"></div>
+          
+          <!-- Actions -->
+          <div class="space-y-2">
+            <button
+              @click="handleDuplicate"
+              class="w-full flex items-center gap-4 px-4 py-4 rounded-lg hover:bg-base-200 transition-colors text-left"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-base-content/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <span class="font-medium">Duplicate</span>
+            </button>
+            
+            <button
+              @click="handleExport"
+              class="w-full flex items-center gap-4 px-4 py-4 rounded-lg hover:bg-base-200 transition-colors text-left"
+              :disabled="exportingPDF"
+            >
+              <span v-if="exportingPDF" class="loading loading-spinner loading-sm"></span>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-base-content/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span class="font-medium">{{ exportingPDF ? 'Exporting...' : 'Export PDF' }}</span>
+            </button>
+            
+            <button
+              @click="handleDelete"
+              class="w-full flex items-center gap-4 px-4 py-4 rounded-lg hover:bg-base-200 transition-colors text-left text-error"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <span class="font-medium">Delete</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Bottom Sheet -->
+    <div
+      v-if="deleteConfirm.show"
+      class="fixed inset-0 z-[60] flex items-end"
+      @click="deleteConfirm.show = false"
+    >
+      <!-- Backdrop -->
+      <div class="absolute inset-0 bg-black/50" @click="deleteConfirm.show = false"></div>
+      
+      <!-- Sheet Content -->
+      <div
+        class="relative bg-base-100 rounded-t-3xl w-full shadow-2xl safe-area-bottom"
+        @click.stop
+      >
+        <div class="p-6">
+          <!-- Handle -->
+          <div class="w-12 h-1 bg-base-300 rounded-full mx-auto mb-6"></div>
+          
+          <h3 class="text-xl font-bold mb-2">
+            Delete report {{ deleteConfirm.intervention?.client_name || 'Unnamed Client' }}?
+          </h3>
+          <p class="text-base-content/70 mb-6">
+            Are you sure you want to delete this report? This action cannot be undone.
+          </p>
+          
+          <div class="flex gap-3">
+            <button
+              @click="deleteConfirm.show = false"
+              class="btn btn-ghost flex-1"
+            >
+              Cancel
+            </button>
+            <button
+              @click="confirmDelete"
+              class="btn btn-error flex-1"
+              :disabled="deleting"
+            >
+              <span v-if="deleting" class="loading loading-spinner loading-sm"></span>
+              {{ deleting ? 'Deleting...' : 'Delete' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -187,6 +293,8 @@ import { ref, computed, onMounted, onUnmounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import { db } from '../db/indexeddb'
 import { generateUUID } from '../utils/uuid'
+import { generatePDF } from '../services/pdf'
+import { deleteInterventionFromCloud } from '../services/supabase'
 
 // Component name for keep-alive
 defineOptions({
@@ -209,6 +317,19 @@ const contextMenu = ref({
   y: 0,
   intervention: null
 })
+
+const actionSheet = ref({
+  show: false,
+  intervention: null
+})
+
+const deleteConfirm = ref({
+  show: false,
+  intervention: null
+})
+
+const exportingPDF = ref(false)
+const deleting = ref(false)
 
 // Long-press detection
 let touchTimer = null
@@ -313,9 +434,14 @@ function formatDateShort(dateString) {
   })
 }
 
-function goToDetail(id) {
+function goToDetail(intervention) {
   if (!contextMenu.value.show) {
-    router.push(`/interventions/${id}`)
+    // If status is "In Progress", go to edit page, otherwise go to detail page
+    if (intervention.status === 'In Progress' || !intervention.status) {
+      router.push(`/interventions/${intervention.id}/edit`)
+    } else {
+      router.push(`/interventions/${intervention.id}`)
+    }
   }
 }
 
@@ -349,16 +475,25 @@ function handleTouchEnd() {
   }
 }
 
+function openActionSheet(intervention) {
+  actionSheet.value.intervention = intervention
+  actionSheet.value.show = true
+}
+
+function handleDuplicate() {
+  if (!actionSheet.value.intervention) return
+  actionSheet.value.show = false
+  duplicateIntervention(actionSheet.value.intervention)
+}
+
 async function duplicateIntervention(intervention) {
   if (!intervention) return
-  
-  contextMenu.value.show = false
   
   try {
     const newId = generateUUID()
     const now = new Date().toISOString()
     
-    // Create duplicate
+    // Create duplicate WITH checklist items but WITHOUT photos and comments
     const duplicate = {
       id: newId,
       client_name: `${intervention.client_name} (Copy)`,
@@ -367,37 +502,90 @@ async function duplicateIntervention(intervention) {
       created_at: now,
       updated_at: now,
       synced: false,
-      checklist_items: Array.isArray(intervention.checklist_items) 
+      checklist_items: Array.isArray(intervention.checklist_items)
         ? JSON.parse(JSON.stringify(intervention.checklist_items))
-        : [],
-      comments: Array.isArray(intervention.comments)
-        ? JSON.parse(JSON.stringify(intervention.comments))
-        : []
+        : [], // Keep checklist items
+      comments: [] // Empty - no comments
     }
     
     await db.interventions.put(duplicate)
-    
-    // Duplicate photos
-    const photos = await db.photos
-      .where('intervention_id').equals(intervention.id)
-      .toArray()
-    
-    for (const photo of photos) {
-      await db.photos.put({
-        id: generateUUID(),
-        intervention_id: newId,
-        url_local: photo.url_local || '',
-        url_cloud: null, // Will need to re-upload
-        description: photo.description || '',
-        taken_at: photo.taken_at || now
-      })
-    }
-    
     await loadInterventions()
     router.push(`/interventions/${newId}/edit`)
   } catch (error) {
     console.error('Error duplicating intervention:', error)
     alert('Error duplicating report. Please try again.')
+  }
+}
+
+async function handleExport() {
+  if (!actionSheet.value.intervention) return
+  
+  exportingPDF.value = true
+  actionSheet.value.show = false
+  
+  try {
+    const intervention = actionSheet.value.intervention
+    
+    // Load checklist items and comments from JSONB
+    const checklistItems = Array.isArray(intervention.checklist_items)
+      ? intervention.checklist_items
+      : []
+    const comments = Array.isArray(intervention.comments)
+      ? intervention.comments
+      : []
+    
+    // Load photos (still separate table)
+    const photos = await db.photos
+      .where('intervention_id').equals(intervention.id)
+      .toArray()
+    
+    const doc = await generatePDF(intervention, checklistItems, photos, comments)
+    const filename = `intervention_${intervention.client_name}_${new Date(intervention.date).toISOString().split('T')[0]}.pdf`
+    doc.save(filename)
+  } catch (error) {
+    console.error('Error generating PDF:', error)
+    alert('Error generating PDF. Please try again.')
+  } finally {
+    exportingPDF.value = false
+  }
+}
+
+function handleDelete() {
+  if (!actionSheet.value.intervention) return
+  deleteConfirm.value.intervention = actionSheet.value.intervention
+  actionSheet.value.show = false
+  deleteConfirm.value.show = true
+}
+
+async function confirmDelete() {
+  if (!deleteConfirm.value.intervention) return
+  
+  deleting.value = true
+  
+  try {
+    const intervention = deleteConfirm.value.intervention
+    const interventionId = intervention.id
+    
+    // Delete from IndexedDB
+    await db.photos.where('intervention_id').equals(interventionId).delete()
+    await db.interventions.delete(interventionId)
+    
+    // Try to delete from cloud if synced
+    if (intervention.synced) {
+      try {
+        await deleteInterventionFromCloud(interventionId)
+      } catch (error) {
+        console.error('Error deleting from cloud:', error)
+      }
+    }
+    
+    deleteConfirm.value.show = false
+    await loadInterventions()
+  } catch (error) {
+    console.error('Error deleting intervention:', error)
+    alert('Error deleting report. Please try again.')
+  } finally {
+    deleting.value = false
   }
 }
 
