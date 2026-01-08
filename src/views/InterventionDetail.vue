@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="pb-20">
     <div v-if="loading" class="text-center py-8">
       <span class="loading loading-spinner loading-lg"></span>
     </div>
@@ -40,39 +40,6 @@
             Offline
           </div>
         </div>
-      </div>
-
-      <!-- Actions -->
-      <div class="flex gap-2 mb-6 flex-wrap">
-        <button
-          @click="downloadPDF"
-          class="btn btn-primary"
-          :disabled="generatingPDF"
-        >
-          <span v-if="generatingPDF" class="loading loading-spinner loading-sm"></span>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          {{ generatingPDF ? 'Generating...' : 'Download PDF' }}
-        </button>
-        <button
-          v-if="intervention.status !== 'Completed'"
-          @click="editIntervention"
-          class="btn btn-secondary"
-        >
-          Edit
-        </button>
-        <button
-          @click="deleteIntervention"
-          class="btn btn-error"
-          :disabled="deleting"
-        >
-          <span v-if="deleting" class="loading loading-spinner loading-sm"></span>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-          {{ deleting ? 'Deleting...' : 'Delete' }}
-        </button>
       </div>
 
       <!-- Checklist -->
@@ -142,9 +109,53 @@
       </div>
 
       <!-- Empty State -->
-      <div v-if="checklistItems.length === 0 && photos.length === 0 && comments.length === 0" class="card bg-base-100 shadow-xl">
+      <div v-if="checklistItems.length === 0 && photos.length === 0 && comments.length === 0" class="card bg-base-100 shadow-xl mb-20">
         <div class="card-body text-center">
           <p class="text-base-content/70">No additional details available for this intervention.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Action Bar (only show when intervention is loaded) -->
+    <div v-if="intervention && !loading" class="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">
+      <!-- Background with blur effect -->
+      <div class="absolute inset-0 bg-base-100/95 backdrop-blur-xl border-t border-base-300/50"></div>
+      
+      <!-- Content -->
+      <div class="relative max-w-md mx-auto px-4 py-3">
+        <div class="flex gap-3">
+          <button
+            @click="downloadPDF"
+            class="btn btn-primary flex-1"
+            :disabled="generatingPDF"
+          >
+            <span v-if="generatingPDF" class="loading loading-spinner loading-sm"></span>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            {{ generatingPDF ? 'Generating...' : 'PDF' }}
+          </button>
+          <button
+            v-if="intervention && intervention.status !== 'Completed'"
+            @click="editIntervention"
+            class="btn btn-secondary flex-1"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Edit
+          </button>
+          <button
+            @click="deleteIntervention"
+            class="btn btn-error flex-1"
+            :disabled="deleting"
+          >
+            <span v-if="deleting" class="loading loading-spinner loading-sm"></span>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            {{ deleting ? 'Deleting...' : 'Delete' }}
+          </button>
         </div>
       </div>
     </div>
