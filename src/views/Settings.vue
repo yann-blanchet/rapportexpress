@@ -2,6 +2,62 @@
   <div>
     <h1 class="text-3xl font-bold mb-6">Settings</h1>
 
+    <!-- Theme Settings -->
+    <div class="card bg-base-100 shadow-xl mb-6">
+      <div class="card-body">
+        <h2 class="card-title mb-4">Theme</h2>
+        
+        <div ref="dropdownContainer" class="dropdown dropdown-end">
+          <div ref="dropdownButton" tabindex="0" role="button" class="btn btn-outline w-full justify-between">
+            <span>{{ getThemeLabel(themeMode) }}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+          <ul ref="dropdownMenu" tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-full p-2 shadow-lg border border-base-300">
+            <li>
+              <a 
+                @click="setThemeMode('auto', $event)"
+                :class="{ 'active': themeMode === 'auto' }"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Auto (System)
+              </a>
+            </li>
+            <li>
+              <a 
+                @click="setThemeMode('light', $event)"
+                :class="{ 'active': themeMode === 'light' }"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                Light
+              </a>
+            </li>
+            <li>
+              <a 
+                @click="setThemeMode('dark', $event)"
+                :class="{ 'active': themeMode === 'dark' }"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+                Dark
+              </a>
+            </li>
+          </ul>
+        </div>
+        <div class="label mt-2">
+          <span class="label-text-alt text-base-content/60">
+            Current theme: {{ currentTheme }}
+          </span>
+        </div>
+      </div>
+    </div>
+
     <!-- User Profile -->
     <div class="card bg-base-100 shadow-xl mb-6">
       <div class="card-body">
@@ -187,9 +243,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { db } from '../db/indexeddb'
 import { supabase, syncInterventionToCloud, syncPhotoToCloud, syncFromCloud } from '../services/supabase'
+
+const themeMode = ref('auto')
+const currentTheme = ref('light')
+const dropdownButton = ref(null)
+const dropdownMenu = ref(null)
+const dropdownContainer = ref(null)
 
 const profile = ref({
   name: '',
@@ -215,6 +277,7 @@ const autoSyncEnabled = ref(true)
 const syncIntervalMinutes = ref(5)
 const lastSyncTime = ref(null)
 let syncTimeInterval = null
+let themeMediaQuery = null
 
 // Compute next sync time display
 const nextSyncIn = computed(() => {
@@ -238,6 +301,70 @@ const nextSyncIn = computed(() => {
   }
   return `${seconds}s`
 })
+
+function loadTheme() {
+  const saved = localStorage.getItem('themeMode')
+  if (saved) {
+    themeMode.value = saved
+  }
+  applyTheme()
+}
+
+function applyTheme() {
+  if (themeMode.value === 'auto') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    currentTheme.value = prefersDark ? 'dark' : 'light'
+    document.documentElement.setAttribute('data-theme', currentTheme.value)
+  } else {
+    currentTheme.value = themeMode.value
+    document.documentElement.setAttribute('data-theme', themeMode.value)
+  }
+}
+
+function getThemeLabel(mode) {
+  switch(mode) {
+    case 'auto': return 'Auto (System)'
+    case 'light': return 'Light'
+    case 'dark': return 'Dark'
+    default: return 'Auto (System)'
+  }
+}
+
+function setThemeMode(mode, event) {
+  if (event) {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+  themeMode.value = mode
+  saveTheme()
+  // Close dropdown by removing focus
+  nextTick(() => {
+    // Remove focus from any element in the dropdown
+    if (dropdownButton.value) {
+      dropdownButton.value.blur()
+    }
+    if (dropdownMenu.value) {
+      dropdownMenu.value.blur()
+    }
+    // Remove tabindex temporarily to force close
+    if (dropdownButton.value) {
+      const originalTabindex = dropdownButton.value.getAttribute('tabindex')
+      dropdownButton.value.removeAttribute('tabindex')
+      setTimeout(() => {
+        if (dropdownButton.value) {
+          dropdownButton.value.setAttribute('tabindex', originalTabindex || '0')
+        }
+      }, 50)
+    }
+  })
+}
+
+function saveTheme() {
+  localStorage.setItem('themeMode', themeMode.value)
+  applyTheme()
+  // Notify main.js to update theme
+  window.dispatchEvent(new CustomEvent('themeChanged'))
+}
 
 function loadProfile() {
   const savedProfile = localStorage.getItem('userProfile')
@@ -432,12 +559,17 @@ function updateOnlineStatus() {
 }
 
 onMounted(() => {
+  loadTheme()
   loadProfile()
   loadPdfSettings()
   loadAutoSyncSettings()
   loadStats()
   window.addEventListener('online', updateOnlineStatus)
   window.addEventListener('offline', updateOnlineStatus)
+  
+  // Listen for system theme changes if in auto mode
+  themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+  themeMediaQuery.addEventListener('change', applyTheme)
   
   // Update last sync time display periodically
   syncTimeInterval = setInterval(() => {
@@ -456,6 +588,12 @@ onUnmounted(() => {
   if (syncTimeInterval) {
     clearInterval(syncTimeInterval)
     syncTimeInterval = null
+  }
+  
+  // Clean up theme listener
+  if (themeMediaQuery) {
+    themeMediaQuery.removeEventListener('change', applyTheme)
+    themeMediaQuery = null
   }
 })
 </script>

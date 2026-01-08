@@ -4,17 +4,31 @@ import App from './App.vue'
 import router from './router'
 import './utils/reloadDiagnostics.js'
 
-// Auto dark/light mode based on system preference
+// Theme management - supports auto, light, and dark modes
 function setTheme() {
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light')
+  const themeMode = localStorage.getItem('themeMode') || 'auto'
+  
+  if (themeMode === 'auto') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light')
+  } else {
+    document.documentElement.setAttribute('data-theme', themeMode)
+  }
 }
 
 // Set initial theme
 setTheme()
 
-// Listen for theme changes
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', setTheme)
+// Listen for system theme changes (only applies if themeMode is 'auto')
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  const themeMode = localStorage.getItem('themeMode') || 'auto'
+  if (themeMode === 'auto') {
+    setTheme()
+  }
+})
+
+// Listen for theme changes from Settings page
+window.addEventListener('themeChanged', setTheme)
 
 // Global error handler to catch unhandled errors
 window.addEventListener('error', (event) => {
