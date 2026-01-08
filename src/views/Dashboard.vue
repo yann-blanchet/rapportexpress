@@ -3,17 +3,15 @@
     <!-- Header with Icon - Fixed at Top -->
     <div class="fixed top-0 left-0 right-0 z-50 safe-area-top">
       <!-- Background with blur effect -->
-      <div class="absolute inset-0 bg-base-100/95 backdrop-blur-xl border-b border-base-300"></div>
+      <div class="absolute inset-0 bg-base-100/95 backdrop-blur-xl border-b-2 border-base-300"></div>
       
       <!-- Content -->
       <div class="relative container mx-auto px-4 py-4">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 bg-success rounded-lg flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-success-content" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
+            <img src="/favicon-96x96.png" alt="App Icon" class="h-6 w-6" />
           </div>
-          <h1 class="text-3xl font-bold">Inspection Reports</h1>
+          <h1 class="text-2xl font-bold">Inspection Reports</h1>
         </div>
       </div>
     </div>
@@ -65,7 +63,7 @@
           :class="[
             'join-item btn btn-xs font-medium px-3 h-7',
             statusFilter === 'In Progress' 
-              ? 'btn-info text-white' 
+              ? 'btn-success text-white' 
               : 'bg-base-100 text-base-content border-base-300'
           ]"
         >
@@ -114,7 +112,7 @@
 
     <div v-else class="space-y-3">
       <div
-        v-for="intervention in filteredInterventions"
+        v-for="(intervention, index) in filteredInterventions"
         :key="intervention.id"
         class="bg-base-100 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer p-4"
         @click="goToDetail(intervention.id)"
@@ -126,7 +124,7 @@
           <div class="flex-1 min-w-0">
             <h3 class="font-semibold text-base mb-1">{{ intervention.client_name || 'Unnamed Client' }}</h3>
             <p class="text-sm text-base-content/70 mb-2">{{ formatDateShort(intervention.date) }}</p>
-            <p class="text-xs text-base-content/50">Long-press for options...</p>
+            <p v-if="index === 0" class="text-xs text-base-content/50">Long-press for options...</p>
           </div>
           <div class="flex items-center gap-2 flex-shrink-0">
             <span

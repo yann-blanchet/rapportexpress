@@ -14,7 +14,7 @@
       class="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom"
     >
       <!-- Background with blur effect -->
-      <div class="absolute inset-0 bg-base-100/95 backdrop-blur-xl border-t border-base-300/50"></div>
+      <div class="absolute inset-0 bg-base-100/95 backdrop-blur-xl border-t-2 border-base-300"></div>
       
       <!-- Content -->
       <div class="relative flex items-center justify-around max-w-md mx-auto px-6 py-2">
