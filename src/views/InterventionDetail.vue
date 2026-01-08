@@ -176,17 +176,20 @@ async function loadIntervention() {
     intervention.value = await db.interventions.get(id)
     
     if (intervention.value) {
-      checklistItems.value = await db.checklist_items
-        .where('intervention_id').equals(id)
-        .toArray()
+      // Load checklist items from JSONB column
+      checklistItems.value = Array.isArray(intervention.value.checklist_items)
+        ? intervention.value.checklist_items
+        : []
       
+      // Load photos (still separate table)
       photos.value = await db.photos
         .where('intervention_id').equals(id)
         .toArray()
       
-      comments.value = await db.comments
-        .where('intervention_id').equals(id)
-        .toArray()
+      // Load comments from JSONB column
+      comments.value = Array.isArray(intervention.value.comments)
+        ? intervention.value.comments
+        : []
     }
   } catch (error) {
     console.error('Error loading intervention:', error)
@@ -249,11 +252,9 @@ async function deleteIntervention() {
   try {
     const interventionId = intervention.value.id
     
-    // Delete from IndexedDB (cascade will handle related data if configured)
-    // But we'll delete explicitly to be sure
-    await db.checklist_items.where('intervention_id').equals(interventionId).delete()
+    // Delete from IndexedDB
+    // Note: checklist_items and comments are now in JSONB, so deleting intervention removes them
     await db.photos.where('intervention_id').equals(interventionId).delete()
-    await db.comments.where('intervention_id').equals(interventionId).delete()
     await db.interventions.delete(interventionId)
     
     // Try to delete from cloud if synced

@@ -255,7 +255,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { db } from '../db/indexeddb'
 import { generateUUID } from '../utils/uuid'
-import { syncInterventionToCloud, syncChecklistItemsToCloud, uploadPhotoToCloud, syncPhotoToCloud, syncCommentToCloud } from '../services/supabase'
+import { syncInterventionToCloud, uploadPhotoToCloud, syncPhotoToCloud } from '../services/supabase'
 import { compressImage } from '../utils/imageCompression'
 
 const route = useRoute()
@@ -287,20 +287,29 @@ async function loadIntervention() {
           status: intervention.status || 'To Do'
         }
 
-        // Load checklist items
-        checklistItems.value = await db.checklist_items
-          .where('intervention_id').equals(route.params.id)
-          .toArray()
+        // Load checklist items from JSONB column
+        checklistItems.value = Array.isArray(intervention.checklist_items) 
+          ? intervention.checklist_items.map(item => ({
+              id: item.id || generateUUID(),
+              label: item.label || '',
+              checked: item.checked || false,
+              photo_ids: Array.isArray(item.photo_ids) ? item.photo_ids : []
+            }))
+          : []
 
-        // Load photos
+        // Load photos (still separate table)
         photos.value = await db.photos
           .where('intervention_id').equals(route.params.id)
           .toArray()
 
-        // Load comments
-        comments.value = await db.comments
-          .where('intervention_id').equals(route.params.id)
-          .toArray()
+        // Load comments from JSONB column
+        comments.value = Array.isArray(intervention.comments)
+          ? intervention.comments.map(comment => ({
+              id: comment.id || generateUUID(),
+              text: comment.text || '',
+              created_at: comment.created_at || new Date().toISOString()
+            }))
+          : []
       }
     } catch (error) {
       console.error('Error loading intervention:', error)
@@ -382,7 +391,22 @@ async function saveIntervention() {
     const interventionId = route.params.id || generateUUID()
     const now = new Date().toISOString()
     
-    // Save intervention
+    // Prepare checklist items as JSONB array
+    const checklistItemsData = checklistItems.value.map(item => ({
+      id: item.id || generateUUID(),
+      label: item.label || '',
+      checked: item.checked || false,
+      photo_ids: Array.isArray(item.photo_ids) ? [...item.photo_ids] : []
+    }))
+    
+    // Prepare comments as JSONB array
+    const commentsData = comments.value.map(comment => ({
+      id: comment.id || generateUUID(),
+      text: comment.text || '',
+      created_at: comment.created_at || new Date().toISOString()
+    }))
+    
+    // Save intervention with JSONB columns
     const intervention = {
       id: interventionId,
       client_name: form.value.client_name,
@@ -390,24 +414,14 @@ async function saveIntervention() {
       status: form.value.status,
       created_at: isEdit.value ? (await db.interventions.get(interventionId))?.created_at || now : now,
       updated_at: now,
-      synced: false
+      synced: false,
+      checklist_items: checklistItemsData,
+      comments: commentsData
     }
     
     await db.interventions.put(intervention)
     
-    // Save checklist items (create clean plain objects)
-    for (const item of checklistItems.value) {
-      const cleanItem = {
-        id: item.id,
-        intervention_id: interventionId,
-        label: item.label || '',
-        checked: item.checked || false,
-        photo_ids: Array.isArray(item.photo_ids) ? [...item.photo_ids] : []
-      }
-      await db.checklist_items.put(cleanItem)
-    }
-    
-    // Save photos (create clean plain objects, base64 is already stored in url_local)
+    // Save photos (still separate table)
     for (const photo of photos.value) {
       const cleanPhoto = {
         id: photo.id,
@@ -423,32 +437,10 @@ async function saveIntervention() {
       await db.photos.put(cleanPhoto)
     }
     
-    // Save comments (create clean plain objects)
-    for (const comment of comments.value) {
-      const cleanComment = {
-        id: comment.id,
-        intervention_id: interventionId,
-        text: comment.text || '',
-        created_at: comment.created_at || new Date().toISOString()
-      }
-      await db.comments.put(cleanComment)
-    }
-    
     // Try to sync to cloud
     try {
+      // Sync intervention (includes checklist_items and comments as JSONB)
       await syncInterventionToCloud(intervention)
-      
-      // Small delay to ensure intervention is committed before inserting related data
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      // Sync checklist items with correct intervention_id
-      if (checklistItems.value.length > 0) {
-        const itemsToSync = checklistItems.value.map(item => ({
-          ...item,
-          intervention_id: interventionId
-        }))
-        await syncChecklistItemsToCloud(itemsToSync)
-      }
       
       // Upload photos (convert base64 back to File, compress, then upload)
       for (const photo of photos.value) {
@@ -488,17 +480,6 @@ async function saveIntervention() {
           } catch (error) {
             console.error('Error uploading photo:', error)
           }
-        }
-      }
-      
-      // Sync comments with correct intervention_id
-      if (comments.value.length > 0) {
-        for (const comment of comments.value) {
-          const commentToSync = {
-            ...comment,
-            intervention_id: interventionId
-          }
-          await syncCommentToCloud(commentToSync)
         }
       }
       

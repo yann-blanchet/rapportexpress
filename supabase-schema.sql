@@ -13,19 +13,12 @@ CREATE TABLE IF NOT EXISTS interventions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   synced BOOLEAN DEFAULT false,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NULL
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NULL,
+  checklist_items JSONB DEFAULT '[]'::jsonb,
+  comments JSONB DEFAULT '[]'::jsonb
 );
 
--- Checklist items table
-CREATE TABLE IF NOT EXISTS checklist_items (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  intervention_id UUID NOT NULL REFERENCES interventions(id) ON DELETE CASCADE,
-  label TEXT NOT NULL,
-  checked BOOLEAN DEFAULT false,
-  photo_ids UUID[] DEFAULT ARRAY[]::UUID[]
-);
-
--- Photos table
+-- Photos table (kept separate as they're large and stored in Supabase Storage)
 CREATE TABLE IF NOT EXISTS photos (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   intervention_id UUID NOT NULL REFERENCES interventions(id) ON DELETE CASCADE,
@@ -35,27 +28,23 @@ CREATE TABLE IF NOT EXISTS photos (
   taken_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Comments table
-CREATE TABLE IF NOT EXISTS comments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  intervention_id UUID NOT NULL REFERENCES interventions(id) ON DELETE CASCADE,
-  text TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+-- Note: checklist_items and comments are now stored as JSONB columns in interventions table
+-- Old tables kept for reference (can be dropped after migration):
+-- CREATE TABLE IF NOT EXISTS checklist_items (...);
+-- CREATE TABLE IF NOT EXISTS comments (...);
 
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_interventions_user_id ON interventions(user_id);
 CREATE INDEX IF NOT EXISTS idx_interventions_date ON interventions(date);
 CREATE INDEX IF NOT EXISTS idx_interventions_status ON interventions(status);
-CREATE INDEX IF NOT EXISTS idx_checklist_items_intervention_id ON checklist_items(intervention_id);
+CREATE INDEX IF NOT EXISTS idx_interventions_checklist_items ON interventions USING GIN (checklist_items);
+CREATE INDEX IF NOT EXISTS idx_interventions_comments ON interventions USING GIN (comments);
 CREATE INDEX IF NOT EXISTS idx_photos_intervention_id ON photos(intervention_id);
-CREATE INDEX IF NOT EXISTS idx_comments_intervention_id ON comments(intervention_id);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE interventions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE checklist_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE photos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+-- Note: checklist_items and comments are now part of interventions table, so RLS is handled there
 
 -- RLS Policies: Allow access to own data or data without user_id (for MVP without auth)
 CREATE POLICY "Users can view their own interventions or unassigned"
@@ -75,48 +64,8 @@ CREATE POLICY "Users can delete their own interventions or unassigned"
   USING (auth.uid() = user_id OR user_id IS NULL);
 
 -- Similar policies for related tables (allow access to unassigned interventions)
--- Separate policies for SELECT/UPDATE/DELETE and INSERT
-
--- Checklist items policies
-CREATE POLICY "Users can view checklist items for their interventions or unassigned"
-  ON checklist_items FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM interventions
-      WHERE interventions.id = checklist_items.intervention_id
-      AND (interventions.user_id = auth.uid() OR interventions.user_id IS NULL)
-    )
-  );
-
-CREATE POLICY "Users can insert checklist items for their interventions or unassigned"
-  ON checklist_items FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM interventions
-      WHERE interventions.id = checklist_items.intervention_id
-      AND (interventions.user_id = auth.uid() OR interventions.user_id IS NULL)
-    )
-  );
-
-CREATE POLICY "Users can update checklist items for their interventions or unassigned"
-  ON checklist_items FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM interventions
-      WHERE interventions.id = checklist_items.intervention_id
-      AND (interventions.user_id = auth.uid() OR interventions.user_id IS NULL)
-    )
-  );
-
-CREATE POLICY "Users can delete checklist items for their interventions or unassigned"
-  ON checklist_items FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM interventions
-      WHERE interventions.id = checklist_items.intervention_id
-      AND (interventions.user_id = auth.uid() OR interventions.user_id IS NULL)
-    )
-  );
+-- Note: checklist_items and comments are now JSONB columns in interventions table,
+-- so they're automatically covered by the interventions RLS policies above
 
 -- Photos policies
 CREATE POLICY "Users can view photos for their interventions or unassigned"
@@ -159,46 +108,14 @@ CREATE POLICY "Users can delete photos for their interventions or unassigned"
     )
   );
 
--- Comments policies
-CREATE POLICY "Users can view comments for their interventions or unassigned"
-  ON comments FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM interventions
-      WHERE interventions.id = comments.intervention_id
-      AND (interventions.user_id = auth.uid() OR interventions.user_id IS NULL)
-    )
-  );
+-- Add constraints to ensure JSONB columns are always arrays
+ALTER TABLE interventions 
+ADD CONSTRAINT IF NOT EXISTS checklist_items_is_array 
+CHECK (jsonb_typeof(checklist_items) = 'array');
 
-CREATE POLICY "Users can insert comments for their interventions or unassigned"
-  ON comments FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM interventions
-      WHERE interventions.id = comments.intervention_id
-      AND (interventions.user_id = auth.uid() OR interventions.user_id IS NULL)
-    )
-  );
-
-CREATE POLICY "Users can update comments for their interventions or unassigned"
-  ON comments FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM interventions
-      WHERE interventions.id = comments.intervention_id
-      AND (interventions.user_id = auth.uid() OR interventions.user_id IS NULL)
-    )
-  );
-
-CREATE POLICY "Users can delete comments for their interventions or unassigned"
-  ON comments FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM interventions
-      WHERE interventions.id = comments.intervention_id
-      AND (interventions.user_id = auth.uid() OR interventions.user_id IS NULL)
-    )
-  );
+ALTER TABLE interventions 
+ADD CONSTRAINT IF NOT EXISTS comments_is_array 
+CHECK (jsonb_typeof(comments) = 'array');
 
 -- Create storage bucket for photos
 INSERT INTO storage.buckets (id, name, public)

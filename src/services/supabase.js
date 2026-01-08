@@ -20,7 +20,13 @@ export async function syncInterventionToCloud(intervention) {
         status: intervention.status,
         created_at: intervention.created_at,
         updated_at: intervention.updated_at,
-        user_id: userId
+        user_id: userId,
+        checklist_items: Array.isArray(intervention.checklist_items) 
+          ? intervention.checklist_items 
+          : [],
+        comments: Array.isArray(intervention.comments) 
+          ? intervention.comments 
+          : []
       })
 
     if (error) throw error
@@ -31,50 +37,11 @@ export async function syncInterventionToCloud(intervention) {
   }
 }
 
+// Note: syncChecklistItemsToCloud is deprecated - checklist_items are now synced as part of syncInterventionToCloud
+// Keeping this function for backward compatibility but it's no longer used
 export async function syncChecklistItemsToCloud(checklistItems) {
-  try {
-    // Filter out items without intervention_id
-    const validItems = checklistItems.filter(item => item.intervention_id)
-    
-    if (validItems.length === 0) {
-      console.warn('No checklist items with valid intervention_id to sync')
-      return []
-    }
-    
-    // Verify intervention exists first (for RLS policy check)
-    const interventionId = validItems[0].intervention_id
-    if (!interventionId) {
-      throw new Error('Intervention ID is required')
-    }
-    
-    const { data: intervention, error: checkError } = await supabase
-      .from('interventions')
-      .select('id')
-      .eq('id', interventionId)
-      .single()
-    
-    if (checkError || !intervention) {
-      throw new Error(`Intervention ${interventionId} not found in cloud`)
-    }
-    
-    const { data, error } = await supabase
-      .from('checklist_items')
-      .upsert(validItems.map(item => ({
-        id: item.id,
-        intervention_id: item.intervention_id,
-        label: item.label || '',
-        checked: item.checked || false,
-        photo_ids: item.photo_ids || []
-      })), {
-        onConflict: 'id'
-      })
-
-    if (error) throw error
-    return data
-  } catch (error) {
-    console.error('Error syncing checklist items:', error)
-    throw error
-  }
+  console.warn('syncChecklistItemsToCloud is deprecated - checklist_items are now synced with interventions')
+  return []
 }
 
 export async function uploadPhotoToCloud(photoFile, interventionId, photoId) {
@@ -144,52 +111,20 @@ export async function syncPhotoToCloud(photo) {
   }
 }
 
+// Note: syncCommentToCloud is deprecated - comments are now synced as part of syncInterventionToCloud
+// Keeping this function for backward compatibility but it's no longer used
 export async function syncCommentToCloud(comment) {
-  try {
-    if (!comment.intervention_id) {
-      console.warn('Comment missing intervention_id, skipping sync')
-      return null
-    }
-    
-    // Verify intervention exists first (for RLS policy check)
-    const { data: intervention, error: checkError } = await supabase
-      .from('interventions')
-      .select('id')
-      .eq('id', comment.intervention_id)
-      .single()
-    
-    if (checkError || !intervention) {
-      throw new Error(`Intervention ${comment.intervention_id} not found in cloud`)
-    }
-    
-    const { data, error } = await supabase
-      .from('comments')
-      .upsert({
-        id: comment.id,
-        intervention_id: comment.intervention_id,
-        text: comment.text || '',
-        created_at: comment.created_at
-      }, {
-        onConflict: 'id'
-      })
-
-    if (error) throw error
-    return data
-  } catch (error) {
-    console.error('Error syncing comment:', error)
-    throw error
-  }
+  console.warn('syncCommentToCloud is deprecated - comments are now synced with interventions')
+  return null
 }
 
 // Delete intervention from cloud
 export async function deleteInterventionFromCloud(interventionId) {
   try {
-    // Delete related data first (due to foreign key constraints)
-    await supabase.from('comments').delete().eq('intervention_id', interventionId)
+    // Delete photos (checklist_items and comments are in JSONB, so they're deleted with intervention)
     await supabase.from('photos').delete().eq('intervention_id', interventionId)
-    await supabase.from('checklist_items').delete().eq('intervention_id', interventionId)
     
-    // Delete intervention
+    // Delete intervention (this also deletes checklist_items and comments in JSONB)
     const { error } = await supabase
       .from('interventions')
       .delete()
@@ -202,6 +137,110 @@ export async function deleteInterventionFromCloud(interventionId) {
     return true
   } catch (error) {
     console.error('Error deleting intervention from cloud:', error)
+    throw error
+  }
+}
+
+// Pull data from Supabase and sync to local IndexedDB
+export async function syncFromCloud(db) {
+  try {
+    if (!navigator.onLine) {
+      console.log('[Sync From Cloud] Offline, skipping')
+      return
+    }
+
+    console.log('[Sync From Cloud] Starting...')
+    
+    // Fetch interventions from Supabase
+    const { data: cloudInterventions, error: interventionsError } = await supabase
+      .from('interventions')
+      .select('*')
+      .order('updated_at', { ascending: false })
+
+    if (interventionsError) {
+      console.error('[Sync From Cloud] Error fetching interventions:', interventionsError)
+      throw interventionsError
+    }
+
+    if (!cloudInterventions || cloudInterventions.length === 0) {
+      console.log('[Sync From Cloud] No interventions in cloud')
+      return
+    }
+
+    console.log(`[Sync From Cloud] Found ${cloudInterventions.length} intervention(s) in cloud`)
+
+    // Sync each intervention to local DB
+    for (const cloudIntervention of cloudInterventions) {
+      try {
+        const localIntervention = await db.interventions.get(cloudIntervention.id)
+        
+        // If local doesn't exist, or cloud is newer, use cloud data
+        const shouldUseCloud = !localIntervention || 
+          new Date(cloudIntervention.updated_at) > new Date(localIntervention.updated_at || 0)
+        
+        if (shouldUseCloud) {
+          await db.interventions.put({
+            id: cloudIntervention.id,
+            client_name: cloudIntervention.client_name,
+            date: cloudIntervention.date,
+            status: cloudIntervention.status,
+            created_at: cloudIntervention.created_at,
+            updated_at: cloudIntervention.updated_at,
+            synced: true,
+            user_id: cloudIntervention.user_id,
+            checklist_items: Array.isArray(cloudIntervention.checklist_items) 
+              ? cloudIntervention.checklist_items 
+              : [],
+            comments: Array.isArray(cloudIntervention.comments) 
+              ? cloudIntervention.comments 
+              : []
+          })
+        }
+      } catch (error) {
+        console.error(`[Sync From Cloud] Error syncing intervention ${cloudIntervention.id}:`, error)
+      }
+    }
+
+    // Fetch photos from Supabase
+    const { data: cloudPhotos, error: photosError } = await supabase
+      .from('photos')
+      .select('*')
+      .order('taken_at', { ascending: false })
+
+    if (photosError) {
+      console.error('[Sync From Cloud] Error fetching photos:', photosError)
+      // Don't throw - photos are optional
+    } else if (cloudPhotos && cloudPhotos.length > 0) {
+      console.log(`[Sync From Cloud] Found ${cloudPhotos.length} photo(s) in cloud`)
+      
+      // Sync photos to local DB
+      for (const cloudPhoto of cloudPhotos) {
+        try {
+          const localPhoto = await db.photos.get(cloudPhoto.id)
+          
+          // If local doesn't exist, or cloud is newer, use cloud data
+          const shouldUseCloud = !localPhoto || 
+            new Date(cloudPhoto.taken_at) > new Date(localPhoto.taken_at || 0)
+          
+          if (shouldUseCloud) {
+            await db.photos.put({
+              id: cloudPhoto.id,
+              intervention_id: cloudPhoto.intervention_id,
+              url_local: cloudPhoto.url_local || '',
+              url_cloud: cloudPhoto.url_cloud || null,
+              description: cloudPhoto.description || '',
+              taken_at: cloudPhoto.taken_at
+            })
+          }
+        } catch (error) {
+          console.error(`[Sync From Cloud] Error syncing photo ${cloudPhoto.id}:`, error)
+        }
+      }
+    }
+
+    console.log('[Sync From Cloud] Completed')
+  } catch (error) {
+    console.error('[Sync From Cloud] Error:', error)
     throw error
   }
 }

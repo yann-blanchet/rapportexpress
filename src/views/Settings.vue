@@ -189,7 +189,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { db } from '../db/indexeddb'
-import { supabase, syncInterventionToCloud, syncChecklistItemsToCloud, syncPhotoToCloud, syncCommentToCloud } from '../services/supabase'
+import { supabase, syncInterventionToCloud, syncPhotoToCloud } from '../services/supabase'
 
 const profile = ref({
   name: '',
@@ -331,16 +331,10 @@ async function manualSync() {
     
     for (const intervention of unsynced) {
       try {
+        // Sync intervention (includes checklist_items and comments as JSONB)
         await syncInterventionToCloud(intervention)
         
-        // Sync related data
-        const checklistItems = await db.checklist_items
-          .where('intervention_id').equals(intervention.id)
-          .toArray()
-        if (checklistItems.length > 0) {
-          await syncChecklistItemsToCloud(checklistItems)
-        }
-        
+        // Sync photos (still separate table)
         const photos = await db.photos
           .where('intervention_id').equals(intervention.id)
           .toArray()
@@ -348,13 +342,6 @@ async function manualSync() {
           if (photo.url_cloud) {
             await syncPhotoToCloud(photo)
           }
-        }
-        
-        const comments = await db.comments
-          .where('intervention_id').equals(intervention.id)
-          .toArray()
-        for (const comment of comments) {
-          await syncCommentToCloud(comment)
         }
         
         intervention.synced = true
@@ -378,9 +365,8 @@ async function exportData() {
   try {
     const data = {
       interventions: await db.interventions.toArray(),
-      checklistItems: await db.checklist_items.toArray(),
+      // Note: checklist_items and comments are now in interventions.checklist_items and interventions.comments
       photos: await db.photos.toArray(),
-      comments: await db.comments.toArray(),
       exportDate: new Date().toISOString()
     }
     

@@ -1,6 +1,6 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { db } from '../db/indexeddb'
-import { syncInterventionToCloud, syncChecklistItemsToCloud, syncPhotoToCloud, syncCommentToCloud } from '../services/supabase'
+import { syncInterventionToCloud, syncPhotoToCloud, syncFromCloud } from '../services/supabase'
 
 let syncInterval = null
 let isSyncing = false
@@ -45,16 +45,10 @@ async function performAutoSync() {
     
     for (const intervention of unsynced) {
       try {
+        // Sync intervention (includes checklist_items and comments as JSONB)
         await syncInterventionToCloud(intervention)
         
-        // Sync related data
-        const checklistItems = await db.checklist_items
-          .where('intervention_id').equals(intervention.id)
-          .toArray()
-        if (checklistItems.length > 0) {
-          await syncChecklistItemsToCloud(checklistItems)
-        }
-        
+        // Sync photos (still separate table)
         const photos = await db.photos
           .where('intervention_id').equals(intervention.id)
           .toArray()
@@ -62,13 +56,6 @@ async function performAutoSync() {
           if (!photo.url_cloud) {
             await syncPhotoToCloud(photo)
           }
-        }
-        
-        const comments = await db.comments
-          .where('intervention_id').equals(intervention.id)
-          .toArray()
-        for (const comment of comments) {
-          await syncCommentToCloud(comment)
         }
         
         intervention.synced = true
@@ -110,12 +97,19 @@ function startAutoSync() {
 
   const interval = getSyncInterval()
   
-  // Perform initial sync after a short delay
-  setTimeout(() => {
-    performAutoSync()
+  // Perform initial sync from cloud and to cloud after a short delay
+  setTimeout(async () => {
+    try {
+      // First, pull data from cloud
+      await syncFromCloud(db)
+      // Then, push local unsynced data to cloud
+      await performAutoSync()
+    } catch (error) {
+      console.error('[Auto Sync] Initial sync error:', error)
+    }
   }, 2000) // Wait 2 seconds after app load
   
-  // Set up periodic sync
+  // Set up periodic sync (only pushes local to cloud)
   syncInterval = setInterval(() => {
     performAutoSync()
   }, interval)

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Clear IndexedDB</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    button {
+      background: #dc2626;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 4px;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #b91c1c;
+    }
+    #status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 4px;
+      background: #f3f4f6;
+    }
+    .success { background: #d1fae5; color: #065f46; }
+    .error { background: #fee2e2; color: #991b1b; }
+    .info { background: #dbeafe; color: #1e40af; }
+  </style>
+</head>
+<body>
+  <h1>Clear IndexedDB Database</h1>
+  <p>This will completely delete the RapportExpress IndexedDB database. After clearing, refresh the app and it will recreate with the new schema.</p>
+  
+  <button onclick="clearIndexedDB()">Clear IndexedDB</button>
+  <button onclick="checkDatabase()">Check Current Database</button>
+  
+  <div id="status"></div>
+
+  <script>
+    async function clearIndexedDB() {
+      const status = document.getElementById('status')
+      status.className = 'info'
+      status.innerHTML = '<p>Clearing IndexedDB...</p>'
+      
+      try {
+        // Delete the database
+        const deleteReq = indexedDB.deleteDatabase('RapportExpressDB')
+        
+        deleteReq.onsuccess = () => {
+          status.className = 'success'
+          status.innerHTML = `
+            <p>✅ IndexedDB database deleted successfully!</p>
+            <p><strong>Next steps:</strong></p>
+            <ol>
+              <li>Close this tab</li>
+              <li>Go back to your app (http://localhost:5173)</li>
+              <li>Hard refresh the page (Ctrl+Shift+R or Cmd+Shift+R)</li>
+              <li>The database will be recreated with the new schema (version 2)</li>
+            </ol>
+          `
+        }
+        
+        deleteReq.onerror = () => {
+          status.className = 'error'
+          status.innerHTML = '<p>❌ Error deleting database. Try closing all app tabs first.</p>'
+        }
+        
+        deleteReq.onblocked = () => {
+          status.className = 'error'
+          status.innerHTML = '<p>⚠️ Database is in use. Close all app tabs and try again.</p>'
+        }
+      } catch (error) {
+        status.className = 'error'
+        status.innerHTML = `<p>❌ Error: ${error.message}</p>`
+      }
+    }
+    
+    async function checkDatabase() {
+      const status = document.getElementById('status')
+      status.className = 'info'
+      status.innerHTML = '<p>Checking database...</p>'
+      
+      try {
+        const db = await new Promise((resolve, reject) => {
+          const req = indexedDB.open('RapportExpressDB')
+          req.onsuccess = () => resolve(req.result)
+          req.onerror = () => reject(req.error)
+        })
+        
+        const version = db.version
+        const objectStoreNames = Array.from(db.objectStoreNames)
+        
+        status.className = 'info'
+        status.innerHTML = `
+          <p><strong>Current Database Info:</strong></p>
+          <ul>
+            <li>Version: ${version}</li>
+            <li>Tables: ${objectStoreNames.length > 0 ? objectStoreNames.join(', ') : 'None'}</li>
+          </ul>
+          ${version === 1 ? '<p style="color: orange;">⚠️ Old schema detected (version 1). You should clear and recreate.</p>' : ''}
+          ${objectStoreNames.includes('checklist_items') || objectStoreNames.includes('comments') 
+            ? '<p style="color: orange;">⚠️ Old tables detected. You should clear and recreate.</p>' 
+            : ''}
+        `
+        
+        db.close()
+      } catch (error) {
+        if (error.name === 'InvalidStateError' || error.message.includes("doesn't exist")) {
+          status.className = 'success'
+          status.innerHTML = '<p>✅ No database found. This is good - it will be created fresh with the new schema.</p>'
+        } else {
+          status.className = 'error'
+          status.innerHTML = `<p>❌ Error: ${error.message}</p>`
+        }
+      }
+    }
+    
+    // Auto-check on load
+    window.addEventListener('load', () => {
+      setTimeout(checkDatabase, 500)
+    })
+  </script>
+</body>
+</html>
