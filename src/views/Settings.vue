@@ -2,10 +2,52 @@
   <div>
     <h1 class="text-3xl font-bold mb-6">Settings</h1>
 
-    <!-- Theme Settings -->
-    <div class="card bg-base-100 shadow-xl mb-6">
+    <!-- Tab Bar -->
+    <div class="tabs tabs-lifted mb-4">
+      <button
+        type="button"
+        @click="activeTab = 'profile'"
+        :class="['tab', activeTab === 'profile' ? 'tab-active' : '']"
+      >
+        Profile
+      </button>
+      <button
+        type="button"
+        @click="activeTab = 'pdf'"
+        :class="['tab', activeTab === 'pdf' ? 'tab-active' : '']"
+      >
+        PDF
+      </button>
+      <button
+        type="button"
+        @click="activeTab = 'sync'"
+        :class="['tab', activeTab === 'sync' ? 'tab-active' : '']"
+      >
+        Sync
+      </button>
+      <button
+        type="button"
+        @click="activeTab = 'stats'"
+        :class="['tab', activeTab === 'stats' ? 'tab-active' : '']"
+      >
+        Stats
+      </button>
+      <button
+        type="button"
+        @click="activeTab = 'account'"
+        :class="['tab', activeTab === 'account' ? 'tab-active' : '']"
+      >
+        Account
+      </button>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="card bg-base-100 shadow-xl">
       <div class="card-body">
-        <h2 class="card-title mb-4">Theme</h2>
+        <!-- Profile Tab -->
+        <div v-show="activeTab === 'profile'">
+          <!-- Theme Settings -->
+          <h2 class="card-title mb-4">Theme</h2>
         
         <div ref="dropdownContainer" class="dropdown dropdown-end">
           <div ref="dropdownButton" tabindex="0" role="button" class="btn btn-outline w-full justify-between">
@@ -50,18 +92,16 @@
             </li>
           </ul>
         </div>
-        <div class="label mt-2">
-          <span class="label-text-alt text-base-content/60">
-            Current theme: {{ currentTheme }}
-          </span>
-        </div>
-      </div>
-    </div>
+          <div class="label mt-2">
+            <span class="label-text-alt text-base-content/60">
+              Current theme: {{ currentTheme }}
+            </span>
+          </div>
 
-    <!-- User Profile -->
-    <div class="card bg-base-100 shadow-xl mb-6">
-      <div class="card-body">
-        <h2 class="card-title mb-4">User Profile</h2>
+          <div class="divider"></div>
+
+          <!-- User Profile -->
+          <h2 class="card-title mb-4">User Profile</h2>
         
         <div class="form-control mb-4">
           <label class="label">
@@ -87,16 +127,14 @@
           />
         </div>
 
-        <button @click="saveProfile" class="btn btn-primary">
-          Save Profile
-        </button>
-      </div>
-    </div>
+          <button @click="saveProfile" class="btn btn-primary">
+            Save Profile
+          </button>
+        </div>
 
-    <!-- PDF Settings -->
-    <div class="card bg-base-100 shadow-xl mb-6">
-      <div class="card-body">
-        <h2 class="card-title mb-4">PDF Settings</h2>
+        <!-- PDF Tab -->
+        <div v-show="activeTab === 'pdf'">
+          <h2 class="card-title mb-4">PDF Settings</h2>
         
         <div class="form-control mb-4">
           <label class="label">
@@ -122,16 +160,14 @@
           />
         </div>
 
-        <button @click="savePdfSettings" class="btn btn-primary">
-          Save PDF Settings
-        </button>
-      </div>
-    </div>
+          <button @click="savePdfSettings" class="btn btn-primary">
+            Save PDF Settings
+          </button>
+        </div>
 
-    <!-- Sync & Backup -->
-    <div class="card bg-base-100 shadow-xl mb-6">
-      <div class="card-body">
-        <h2 class="card-title mb-4">Sync & Backup</h2>
+        <!-- Sync Tab -->
+        <div v-show="activeTab === 'sync'">
+          <h2 class="card-title mb-4">Sync & Backup</h2>
         
         <div class="space-y-4">
           <div>
@@ -202,13 +238,11 @@
             </button>
           </div>
         </div>
-      </div>
-    </div>
+        </div>
 
-    <!-- Statistics -->
-    <div class="card bg-base-100 shadow-xl mb-6">
-      <div class="card-body">
-        <h2 class="card-title mb-4">Statistics</h2>
+        <!-- Stats Tab -->
+        <div v-show="activeTab === 'stats'">
+          <h2 class="card-title mb-4">Statistics</h2>
         <div class="stats stats-vertical lg:stats-horizontal shadow w-full">
           <div class="stat">
             <div class="stat-title">Total Interventions</div>
@@ -227,16 +261,15 @@
             <div class="stat-value text-error">{{ stats.notSynced }}</div>
           </div>
         </div>
-      </div>
-    </div>
+        </div>
 
-    <!-- Logout -->
-    <div class="card bg-base-100 shadow-xl">
-      <div class="card-body">
-        <h2 class="card-title mb-4">Account</h2>
-        <button @click="logout" class="btn btn-error">
-          Logout
-        </button>
+        <!-- Account Tab -->
+        <div v-show="activeTab === 'account'">
+          <h2 class="card-title mb-4">Account</h2>
+          <button @click="logout" class="btn btn-error">
+            Logout
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -247,6 +280,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { db } from '../db/indexeddb'
 import { supabase, syncInterventionToCloud, syncPhotoToCloud, syncFromCloud } from '../services/supabase'
 
+const activeTab = ref('profile')
 const themeMode = ref('auto')
 const currentTheme = ref('light')
 const dropdownButton = ref(null)

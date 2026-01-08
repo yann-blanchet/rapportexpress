@@ -112,9 +112,12 @@
               <button
                 type="button"
                 @click="addChecklistItem"
-                class="btn btn-sm btn-primary"
+                class="btn btn-sm btn-primary btn-circle"
+                title="Add Item"
               >
-                Add Item
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
               </button>
             </div>
 
@@ -165,9 +168,12 @@
               <button
                 type="button"
                 @click="$refs.photoInput.click()"
-                class="btn btn-sm btn-primary"
+                class="btn btn-sm btn-primary btn-circle"
+                title="Add Photo"
               >
-                Add Photo
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
               </button>
             </div>
 
@@ -219,20 +225,25 @@
 
           <!-- Comments Tab -->
           <div v-show="activeTab === 'comments'">
-            <h2 class="card-title mb-4">Comments</h2>
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="card-title">Comments</h2>
+              <button
+                type="button"
+                @click="addComment"
+                class="btn btn-sm btn-primary btn-circle"
+                :disabled="!commentText.trim()"
+                title="Add Comment"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+            </div>
             <textarea
               v-model="commentText"
               placeholder="Enter comments or notes..."
-              class="textarea textarea-bordered h-32"
+              class="textarea textarea-bordered h-32 w-full"
             ></textarea>
-            <button
-              type="button"
-              @click="addComment"
-              class="btn btn-primary btn-sm mt-2"
-              :disabled="!commentText.trim()"
-            >
-              Add Comment
-            </button>
 
             <div v-if="comments.length > 0" class="mt-4 space-y-2">
               <div
