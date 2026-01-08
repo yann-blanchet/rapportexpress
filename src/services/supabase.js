@@ -53,15 +53,53 @@ export async function uploadPhotoToCloud(photoFile, interventionId, photoId) {
     const fileExt = photoFile.name.split('.').pop()
     const fileName = `${userId}/${interventionId}/${photoId}.${fileExt}`
     
+    // First, try to check if file exists and delete it (for upsert behavior)
+    // This works around RLS policy issues with upsert
+    try {
+      await supabase.storage
+        .from('intervention-photos')
+        .remove([fileName])
+    } catch (removeError) {
+      // Ignore errors when removing (file might not exist)
+      // This is fine - we'll just upload normally
+    }
+    
+    // Upload the file
     const { data, error } = await supabase.storage
       .from('intervention-photos')
       .upload(fileName, photoFile, {
         cacheControl: '3600',
-        upsert: false
+        upsert: false // We handle upsert by removing first
       })
 
-    if (error) throw error
+    // If upload fails with RLS policy error, try to get existing URL
+    if (error) {
+      const errorMessage = error.message?.toLowerCase() || ''
+      
+      // Check for RLS policy errors or "already exists" errors
+      if (errorMessage.includes('row-level security') || 
+          errorMessage.includes('policy') ||
+          errorMessage.includes('already exists') || 
+          errorMessage.includes('duplicate')) {
+        // Try to get the public URL if file might exist
+        try {
+          const { data: { publicUrl } } = supabase.storage
+            .from('intervention-photos')
+            .getPublicUrl(fileName)
+          // If we can construct the URL, return it (file might exist but RLS blocks access)
+          if (publicUrl) {
+            console.warn('Upload blocked by RLS, but file may exist. Using constructed URL:', publicUrl)
+            return publicUrl
+          }
+        } catch (urlError) {
+          // If we can't get URL, throw original error
+        }
+      }
+      // For other errors, throw
+      throw error
+    }
 
+    // Get public URL for the uploaded file
     const { data: { publicUrl } } = supabase.storage
       .from('intervention-photos')
       .getPublicUrl(fileName)

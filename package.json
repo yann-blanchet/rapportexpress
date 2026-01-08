@@ -12,8 +12,10 @@
     "browser-image-compression": "^2.0.2",
     "dexie": "^3.2.4",
     "jspdf": "^4.0.0",
+    "konva": "^9.2.3",
     "uuid": "^9.0.1",
     "vue": "^3.4.21",
+    "vue-konva": "^3.0.2",
     "vue-router": "^4.3.0"
   },
   "devDependencies": {

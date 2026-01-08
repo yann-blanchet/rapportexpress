@@ -67,20 +67,27 @@
       </div>
 
       <!-- Photos -->
-      <div v-if="photos.length > 0" class="card bg-base-100 shadow-xl mb-6">
+      <div class="card bg-base-100 shadow-xl mb-6">
         <div class="card-body">
           <h2 class="card-title mb-4">Photos</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div v-if="photos.length === 0" class="text-center py-4 text-base-content/70">
+            No photos available.
+          </div>
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div
-              v-for="photo in photos"
-              :key="photo.id"
+              v-for="(photo, index) in photos"
+              :key="photo.id || `photo-${index}`"
               class="relative"
             >
-              <img
-                :src="photo.url_local || photo.url_cloud"
-                alt="Intervention photo"
-                class="w-full h-48 object-cover rounded-lg"
-              />
+              <div class="relative w-full h-48 bg-base-200 rounded-lg overflow-hidden">
+                <img
+                  :src="getPhotoUrl(photo)"
+                  alt="Intervention photo"
+                  class="w-full h-full object-cover cursor-pointer"
+                  @click="openImageViewer(index)"
+                  @error="handleImageError($event, photo)"
+                />
+              </div>
               <p v-if="photo.description" class="mt-2 text-sm text-base-content/70">
                 {{ photo.description }}
               </p>
@@ -159,15 +166,23 @@
         </div>
       </div>
     </div>
+
+    <!-- Image Viewer -->
+    <ImageViewer
+      v-model="imageViewer.show"
+      :photos="photos"
+      :initial-index="imageViewer.index"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, onActivated, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { db } from '../db/indexeddb'
 import { generatePDF } from '../services/pdf'
 import { deleteInterventionFromCloud } from '../services/supabase'
+import ImageViewer from '../components/ImageViewer.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -179,35 +194,53 @@ const checklistItems = ref([])
 const photos = ref([])
 const comments = ref([])
 
+// Computed property to ensure reactivity
+const hasPhotos = computed(() => photos.value && photos.value.length > 0)
+
+// Image Viewer State
+const imageViewer = ref({
+  show: false,
+  index: 0
+})
+
 async function loadIntervention() {
   try {
     loading.value = true
     const id = route.params.id
     
+    // Load intervention
     intervention.value = await db.interventions.get(id)
     
-    if (intervention.value) {
-      // Load checklist items from JSONB column
-      checklistItems.value = Array.isArray(intervention.value.checklist_items)
-        ? intervention.value.checklist_items
-        : []
-      
-      // Load photos (still separate table)
-      photos.value = await db.photos
-        .where('intervention_id').equals(id)
-        .toArray()
-      
-      // Load comments from JSONB column
-      comments.value = Array.isArray(intervention.value.comments)
-        ? intervention.value.comments
-        : []
+    if (!intervention.value) {
+      return
     }
+    
+    // Load checklist items from JSONB column
+    checklistItems.value = Array.isArray(intervention.value.checklist_items)
+      ? intervention.value.checklist_items
+      : []
+    
+    // Load photos (still separate table)
+    const loadedPhotos = await db.photos
+      .where('intervention_id').equals(id)
+      .toArray()
+    
+    // Filter out invalid photos (must have id and at least one URL)
+    photos.value = loadedPhotos.filter(p => {
+      return !!p.id && !!(p.url_local || p.url_cloud)
+    })
+    
+    // Load comments from JSONB column
+    comments.value = Array.isArray(intervention.value.comments)
+      ? intervention.value.comments
+      : []
   } catch (error) {
-    console.error('Error loading intervention:', error)
+    console.error('[InterventionDetail] Error loading intervention:', error)
   } finally {
     loading.value = false
   }
 }
+
 
 function formatDate(dateString) {
   if (!dateString) return 'No date'
@@ -219,6 +252,31 @@ function formatDate(dateString) {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+// Image Viewer Functions
+function openImageViewer(index) {
+  imageViewer.value.index = index
+  imageViewer.value.show = true
+}
+
+function getPhotoUrl(photo) {
+  // Try local first, then cloud, fallback to empty string
+  const url = photo.url_local || photo.url_cloud || ''
+  if (!url) {
+    console.warn('[InterventionDetail] Photo has no URL:', photo.id)
+  }
+  return url
+}
+
+function handleImageError(event, photo) {
+  // Try cloud URL if local failed
+  if (event.target.src === photo.url_local && photo.url_cloud) {
+    event.target.src = photo.url_cloud
+    return
+  }
+  // Show a placeholder if both fail
+  event.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2RkZCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5JbWFnZSBub3QgYXZhaWxhYmxlPC90ZXh0Pjwvc3ZnPg=='
 }
 
 async function downloadPDF() {
@@ -288,7 +346,20 @@ async function deleteIntervention() {
   }
 }
 
+// Load on mount
 onMounted(() => {
   loadIntervention()
 })
+
+// Also load on activation (for keep-alive)
+onActivated(() => {
+  loadIntervention()
+})
+
+// Watch for route changes
+watch(() => route.params.id, (newId) => {
+  if (newId) {
+    loadIntervention()
+  }
+}, { immediate: true })
 </script>

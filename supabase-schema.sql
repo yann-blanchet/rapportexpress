@@ -145,3 +145,15 @@ CREATE POLICY "Users can delete their photos"
     bucket_id = 'intervention-photos' AND
     (auth.uid()::text = (storage.foldername(name))[1] OR (storage.foldername(name))[1] = 'anonymous')
   );
+
+-- Storage policy: Users can update their photos (needed for upsert operations)
+CREATE POLICY "Users can update their photos"
+  ON storage.objects FOR UPDATE
+  USING (
+    bucket_id = 'intervention-photos' AND
+    (auth.uid()::text = (storage.foldername(name))[1] OR (storage.foldername(name))[1] = 'anonymous')
+  )
+  WITH CHECK (
+    bucket_id = 'intervention-photos' AND
+    (auth.uid()::text = (storage.foldername(name))[1] OR (storage.foldername(name))[1] = 'anonymous')
+  );

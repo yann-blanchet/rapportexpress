@@ -20,6 +20,17 @@
     <div class="flex justify-center mb-2">
       <div class="join w-fit">
         <button
+          @click="periodFilter = 'All'"
+          :class="[
+            'join-item btn btn-xs font-medium px-3 h-7',
+            periodFilter === 'All' 
+              ? 'btn-success text-white' 
+              : 'bg-base-100 text-base-content border-base-300'
+          ]"
+        >
+          All
+        </button>
+        <button
           @click="periodFilter = 'today'"
           :class="[
             'join-item btn btn-xs font-medium px-3 h-7',
@@ -58,6 +69,17 @@
     <!-- Status Filter Buttons - Join Component -->
     <div class="flex justify-center mb-3">
       <div class="join w-fit">
+        <button
+          @click="statusFilter = 'All'"
+          :class="[
+            'join-item btn btn-xs font-medium px-3 h-7',
+            statusFilter === 'All' 
+              ? 'btn-success text-white' 
+              : 'bg-base-100 text-base-content border-base-300'
+          ]"
+        >
+          All
+        </button>
         <button
           @click="statusFilter = 'In Progress'"
           :class="[
@@ -123,7 +145,7 @@
         <div class="flex justify-between items-start gap-3">
           <div class="flex-1 min-w-0">
             <h3 class="font-semibold text-base mb-1">{{ intervention.client_name || 'Unnamed Client' }}</h3>
-            <p class="text-sm text-base-content/70 mb-2">{{ formatDateShort(intervention.date) }}</p>
+            <p class="text-sm text-base-content/70">{{ formatDateShort(intervention.date) }}</p>
           </div>
           <div class="flex items-center gap-2 flex-shrink-0">
             <span
@@ -304,8 +326,8 @@ const router = useRouter()
 const interventions = ref([])
 const loading = ref(true)
 const searchQuery = ref('')
-const statusFilter = ref('In Progress')
-const periodFilter = ref('today')
+const statusFilter = ref('All') // Changed default to 'All' to show all interventions
+const periodFilter = ref('All') // Changed default to 'All' to show all interventions
 const dateFrom = ref('')
 const dateTo = ref('')
 
@@ -346,12 +368,12 @@ const filteredInterventions = computed(() => {
   }
 
   // Status filter
-  if (statusFilter.value) {
+  if (statusFilter.value && statusFilter.value !== 'All') {
     filtered = filtered.filter(i => i.status === statusFilter.value)
   }
 
   // Period/Date range filter
-  if (periodFilter.value && periodFilter.value !== 'custom') {
+  if (periodFilter.value && periodFilter.value !== 'All' && periodFilter.value !== 'custom') {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     
@@ -410,16 +432,68 @@ const filteredInterventions = computed(() => {
   return filtered.sort((a, b) => new Date(b.date) - new Date(a.date))
 })
 
+let isLoadingInterventions = false
+let lastLoadTime = 0
+const LOAD_DEBOUNCE_MS = 1000 // Prevent loads within 1 second of each other
+
 async function loadInterventions() {
+  // Prevent concurrent loads
+  if (isLoadingInterventions) {
+    return
+  }
+  
+  // Debounce: prevent rapid successive loads
+  const now = Date.now()
+  if (now - lastLoadTime < LOAD_DEBOUNCE_MS) {
+    return
+  }
+  lastLoadTime = now
+  
   try {
+    isLoadingInterventions = true
     loading.value = true
+    
+    // Wait for database to be ready
+    await db.open()
+    
+    // Check if database is accessible
+    if (!db || !db.interventions) {
+      console.error('[Dashboard] Database or interventions table not available')
+      interventions.value = []
+      return
+    }
+    
+    // Try to get count first
+    const count = await db.interventions.count()
+    
+    if (count === 0) {
+      interventions.value = []
+      return
+    }
+    
+    // Load all interventions
     const all = await db.interventions.toArray()
-    interventions.value = all
+    interventions.value = all || []
+    
+    if (all.length === 0 && count > 0) {
+      console.warn('[Dashboard] Count shows interventions exist but toArray returned empty. Possible schema issue.')
+      // Try alternative query
+      try {
+        const alt = await db.interventions.orderBy('date').toArray()
+        if (alt.length > 0) {
+          interventions.value = alt
+        }
+      } catch (altError) {
+        console.error('[Dashboard] Alternative query also failed:', altError)
+      }
+    }
   } catch (error) {
     console.error('[Dashboard] Error loading interventions:', error)
+    interventions.value = []
     // Don't let errors cause the component to remount
   } finally {
     loading.value = false
+    isLoadingInterventions = false
   }
 }
 
@@ -633,24 +707,50 @@ function updateDateFilterFromPeriod() {
   }
 }
 
+// Track if we're in the initial mount phase (first 3 seconds)
+let initialMountTime = Date.now()
+const INITIAL_MOUNT_GRACE_PERIOD = 3000 // 3 seconds
+
 // Listen for sync completion events to refresh data
-function handleSyncCompleted() {
-  loadInterventions()
+function handleSyncCompleted(event) {
+  // Skip sync reload during initial mount grace period to avoid double loading
+  const timeSinceMount = Date.now() - initialMountTime
+  if (timeSinceMount < INITIAL_MOUNT_GRACE_PERIOD) {
+    return
+  }
+  
+  // Only reload if sync actually brought in new data
+  const detail = event.detail || {}
+  const fromCloud = detail.fromCloud || {}
+  const toCloud = detail.toCloud || {}
+  const hasNewData = (fromCloud.interventions > 0 || fromCloud.photos > 0 || toCloud.interventions > 0)
+  
+  if (hasNewData) {
+    loadInterventions()
+  }
 }
 
 onMounted(() => {
-  loadInterventions()
+  // Record mount time for grace period
+  initialMountTime = Date.now()
+  
   // Listen for sync completion events
   window.addEventListener('syncCompleted', handleSyncCompleted)
+  
+  // Load interventions on mount
+  loadInterventions()
 })
 
 // Refresh data when component is activated (user navigates back to Dashboard)
+// Note: We don't load here on initial mount to avoid double loading
+// The syncCompleted event will handle refreshing when needed
 onActivated(() => {
-  loadInterventions()
+  // Component activated - sync events will handle refreshes if needed
 })
 
 onUnmounted(() => {
   // Clean up event listener
   window.removeEventListener('syncCompleted', handleSyncCompleted)
+  // Don't reset hasLoadedInitially - keep it true for next mount
 })
 </script>

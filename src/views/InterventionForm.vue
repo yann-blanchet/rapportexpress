@@ -11,197 +11,240 @@
       </h1>
     </div>
 
-    <form @submit.prevent="saveIntervention" class="space-y-6">
-      <!-- Basic Information -->
-      <div class="card bg-base-100 shadow-xl">
-        <div class="card-body">
-          <h2 class="card-title mb-4">Basic Information</h2>
-          
-          <div class="form-control mb-4">
-            <label class="label">
-              <span class="label-text">Client / Site Name *</span>
-            </label>
-            <input
-              type="text"
-              v-model="form.client_name"
-              required
-              placeholder="Enter client or site name"
-              class="input input-bordered"
-            />
-          </div>
-
-          <div class="form-control mb-4">
-            <label class="label">
-              <span class="label-text">Date & Time *</span>
-            </label>
-            <input
-              type="datetime-local"
-              v-model="form.date"
-              required
-              class="input input-bordered"
-            />
-          </div>
-
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Status</span>
-            </label>
-            <div class="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                @click="form.status = 'In Progress'"
-                :class="[
-                  'badge badge-lg cursor-pointer transition-all px-4 py-2',
-                  form.status === 'In Progress' ? 'badge-warning' : 'badge-outline'
-                ]"
-              >
-                In Progress
-              </button>
-              <button
-                type="button"
-                @click="form.status = 'Completed'"
-                :class="[
-                  'badge badge-lg cursor-pointer transition-all px-4 py-2',
-                  form.status === 'Completed' ? 'badge-success' : 'badge-outline'
-                ]"
-              >
-                Completed
-              </button>
-            </div>
-          </div>
-        </div>
+    <form @submit.prevent="saveIntervention">
+      <!-- Tab Bar -->
+      <div class="tabs tabs-lifted mb-4">
+        <button
+          type="button"
+          @click="activeTab = 'infos'"
+          :class="['tab', activeTab === 'infos' ? 'tab-active' : '']"
+        >
+          Infos
+        </button>
+        <button
+          type="button"
+          @click="activeTab = 'checklist'"
+          :class="['tab', activeTab === 'checklist' ? 'tab-active' : '']"
+        >
+          Checklist
+        </button>
+        <button
+          type="button"
+          @click="activeTab = 'photos'"
+          :class="['tab', activeTab === 'photos' ? 'tab-active' : '']"
+        >
+          Photos
+        </button>
+        <button
+          type="button"
+          @click="activeTab = 'comments'"
+          :class="['tab', activeTab === 'comments' ? 'tab-active' : '']"
+        >
+          Comments
+        </button>
       </div>
 
-      <!-- Checklist -->
+      <!-- Tab Content -->
       <div class="card bg-base-100 shadow-xl">
         <div class="card-body">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="card-title">Checklist</h2>
-            <button
-              type="button"
-              @click="addChecklistItem"
-              class="btn btn-sm btn-primary"
-            >
-              Add Item
-            </button>
-          </div>
-
-          <div v-if="checklistItems.length === 0" class="text-center py-4 text-base-content/70">
-            No checklist items. Click "Add Item" to create one.
-          </div>
-
-          <div v-else class="space-y-2">
-            <div
-              v-for="(item, index) in checklistItems"
-              :key="item.id"
-              class="flex items-center gap-2 p-2 border rounded-lg"
-            >
-              <input
-                type="checkbox"
-                v-model="item.checked"
-                class="checkbox checkbox-primary"
-              />
+          <!-- Infos Tab -->
+          <div v-show="activeTab === 'infos'">
+            <h2 class="card-title mb-4">Basic Information</h2>
+            
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text">Client / Site Name *</span>
+              </label>
               <input
                 type="text"
-                v-model="item.label"
-                placeholder="Checklist item label"
-                class="input input-bordered flex-1"
+                v-model="form.client_name"
+                required
+                placeholder="Enter client or site name"
+                class="input input-bordered"
+              />
+            </div>
+
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text">Date & Time *</span>
+              </label>
+              <input
+                type="datetime-local"
+                v-model="form.date"
+                required
+                class="input input-bordered"
+              />
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Status</span>
+              </label>
+              <div class="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  @click="form.status = 'In Progress'"
+                  :class="[
+                    'badge badge-lg cursor-pointer transition-all px-4 py-2',
+                    form.status === 'In Progress' ? 'badge-warning' : 'badge-outline'
+                  ]"
+                >
+                  In Progress
+                </button>
+                <button
+                  type="button"
+                  @click="form.status = 'Completed'"
+                  :class="[
+                    'badge badge-lg cursor-pointer transition-all px-4 py-2',
+                    form.status === 'Completed' ? 'badge-success' : 'badge-outline'
+                  ]"
+                >
+                  Completed
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Checklist Tab -->
+          <div v-show="activeTab === 'checklist'">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="card-title">Checklist</h2>
+              <button
+                type="button"
+                @click="addChecklistItem"
+                class="btn btn-sm btn-primary"
+              >
+                Add Item
+              </button>
+            </div>
+
+            <div v-if="checklistItems.length === 0" class="text-center py-4 text-base-content/70">
+              No checklist items. Click "Add Item" to create one.
+            </div>
+
+            <div v-else class="space-y-2">
+              <div
+                v-for="(item, index) in checklistItems"
+                :key="item.id"
+                class="flex items-center gap-2 p-2 border rounded-lg"
+              >
+                <input
+                  type="checkbox"
+                  v-model="item.checked"
+                  class="checkbox checkbox-primary"
+                />
+                <input
+                  type="text"
+                  v-model="item.label"
+                  placeholder="Checklist item label"
+                  class="input input-bordered flex-1"
+                />
+                <button
+                  type="button"
+                  @click="removeChecklistItem(index)"
+                  class="btn btn-sm btn-error btn-circle"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Photos Tab -->
+          <div v-show="activeTab === 'photos'">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="card-title">Photos</h2>
+              <input
+                type="file"
+                ref="photoInput"
+                @change="handlePhotoUpload"
+                accept="image/*"
+                capture="environment"
+                class="hidden"
               />
               <button
                 type="button"
-                @click="removeChecklistItem(index)"
-                class="btn btn-sm btn-error btn-circle"
+                @click="$refs.photoInput.click()"
+                class="btn btn-sm btn-primary"
               >
-                ×
+                Add Photo
               </button>
             </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Photos -->
-      <div class="card bg-base-100 shadow-xl">
-        <div class="card-body">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="card-title">Photos</h2>
-            <input
-              type="file"
-              ref="photoInput"
-              @change="handlePhotoUpload"
-              accept="image/*"
-              capture="environment"
-              class="hidden"
-            />
+            <div v-if="photos.length === 0" class="text-center py-4 text-base-content/70">
+              No photos added yet.
+            </div>
+
+            <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div
+                v-for="(photo, index) in photos"
+                :key="photo.id"
+                class="relative"
+              >
+                <img
+                  :src="getPhotoUrl(photo)"
+                  alt="Intervention photo"
+                  class="w-full h-32 object-cover rounded-lg cursor-pointer"
+                  @click="openImageViewer(index)"
+                  @error="handleImageError($event, photo)"
+                />
+                <input
+                  type="text"
+                  v-model="photo.description"
+                  placeholder="Photo description"
+                  class="input input-bordered input-sm mt-2 w-full"
+                />
+                <div class="absolute top-2 right-2 flex gap-1">
+                  <button
+                    type="button"
+                    @click.stop="openImageEditor(photo)"
+                    class="btn btn-sm btn-primary btn-circle"
+                    title="Edit image"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    @click.stop="removePhoto(photo.id)"
+                    class="btn btn-sm btn-error btn-circle"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Comments Tab -->
+          <div v-show="activeTab === 'comments'">
+            <h2 class="card-title mb-4">Comments</h2>
+            <textarea
+              v-model="commentText"
+              placeholder="Enter comments or notes..."
+              class="textarea textarea-bordered h-32"
+            ></textarea>
             <button
               type="button"
-              @click="$refs.photoInput.click()"
-              class="btn btn-sm btn-primary"
+              @click="addComment"
+              class="btn btn-primary btn-sm mt-2"
+              :disabled="!commentText.trim()"
             >
-              Add Photo
+              Add Comment
             </button>
-          </div>
 
-          <div v-if="photos.length === 0" class="text-center py-4 text-base-content/70">
-            No photos added yet.
-          </div>
-
-          <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div
-              v-for="photo in photos"
-              :key="photo.id"
-              class="relative"
-            >
-              <img
-                :src="photo.url_local"
-                alt="Intervention photo"
-                class="w-full h-32 object-cover rounded-lg"
-              />
-              <input
-                type="text"
-                v-model="photo.description"
-                placeholder="Photo description"
-                class="input input-bordered input-sm mt-2 w-full"
-              />
-              <button
-                type="button"
-                @click="removePhoto(photo.id)"
-                class="btn btn-sm btn-error btn-circle absolute top-2 right-2"
+            <div v-if="comments.length > 0" class="mt-4 space-y-2">
+              <div
+                v-for="comment in comments"
+                :key="comment.id"
+                class="p-3 bg-base-200 rounded-lg"
               >
-                ×
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Comments -->
-      <div class="card bg-base-100 shadow-xl">
-        <div class="card-body">
-          <h2 class="card-title mb-4">Comments</h2>
-          <textarea
-            v-model="commentText"
-            placeholder="Enter comments or notes..."
-            class="textarea textarea-bordered h-32"
-          ></textarea>
-          <button
-            type="button"
-            @click="addComment"
-            class="btn btn-primary btn-sm mt-2"
-            :disabled="!commentText.trim()"
-          >
-            Add Comment
-          </button>
-
-          <div v-if="comments.length > 0" class="mt-4 space-y-2">
-            <div
-              v-for="comment in comments"
-              :key="comment.id"
-              class="p-3 bg-base-200 rounded-lg"
-            >
-              <p class="text-sm">{{ comment.text }}</p>
-              <p class="text-xs text-base-content/70 mt-1">
-                {{ formatDate(comment.created_at) }}
-              </p>
+                <p class="text-sm">{{ comment.text }}</p>
+                <p class="text-xs text-base-content/70 mt-1">
+                  {{ formatDate(comment.created_at) }}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -210,6 +253,20 @@
       <!-- Spacer for bottom bar -->
       <div class="h-20"></div>
     </form>
+
+    <!-- Image Editor -->
+    <ImageEditor
+      v-model="imageEditor.show"
+      :photo="imageEditor.photo"
+      @save="handleImageSave"
+    />
+
+    <!-- Image Viewer -->
+    <ImageViewer
+      v-model="imageViewer.show"
+      :photos="photos"
+      :initial-index="imageViewer.index"
+    />
 
     <!-- Bottom Action Bar -->
     <div class="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">
@@ -247,12 +304,15 @@ import { db } from '../db/indexeddb'
 import { generateUUID } from '../utils/uuid'
 import { syncInterventionToCloud, uploadPhotoToCloud, syncPhotoToCloud } from '../services/supabase'
 import { compressImage } from '../utils/imageCompression'
+import ImageEditor from '../components/ImageEditor.vue'
+import ImageViewer from '../components/ImageViewer.vue'
 
 const route = useRoute()
 const router = useRouter()
 const isEdit = ref(false)
 const saving = ref(false)
 const photoInput = ref(null)
+const activeTab = ref('infos')
 
 const form = ref({
   client_name: '',
@@ -264,6 +324,18 @@ const checklistItems = ref([])
 const photos = ref([])
 const comments = ref([])
 const commentText = ref('')
+
+// Image Editor State
+const imageEditor = ref({
+  show: false,
+  photo: null
+})
+
+// Image Viewer State
+const imageViewer = ref({
+  show: false,
+  index: 0
+})
 
 async function loadIntervention() {
   if (route.params.id) {
@@ -352,6 +424,45 @@ function removePhoto(photoId) {
   const index = photos.value.findIndex(p => p.id === photoId)
   if (index > -1) {
     photos.value.splice(index, 1)
+  }
+}
+
+// Image Editor Functions
+function openImageEditor(photo) {
+  imageEditor.value.photo = photo
+  imageEditor.value.show = true
+}
+
+// Image Viewer Functions
+function openImageViewer(index) {
+  imageViewer.value.index = index
+  imageViewer.value.show = true
+}
+
+function getPhotoUrl(photo) {
+  // Try local first, then cloud, fallback to empty string
+  return photo.url_local || photo.url_cloud || ''
+}
+
+function handleImageError(event, photo) {
+  // Try cloud URL if local failed
+  if (event.target.src === photo.url_local && photo.url_cloud) {
+    event.target.src = photo.url_cloud
+    return
+  }
+  // Show a placeholder if both fail
+  event.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2RkZCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5JbWFnZSBub3QgYXZhaWxhYmxlPC90ZXh0Pjwvc3ZnPg=='
+}
+
+function handleImageSave(dataURL) {
+  if (!imageEditor.value.photo) return
+  
+  // Update the photo with the edited image
+  const photoIndex = photos.value.findIndex(p => p.id === imageEditor.value.photo.id)
+  if (photoIndex > -1) {
+    photos.value[photoIndex].url_local = dataURL
+    // Reset cloud URL since image has been edited
+    photos.value[photoIndex].url_cloud = null
   }
 }
 
@@ -468,7 +579,9 @@ async function saveIntervention() {
             await db.photos.put(cleanPhoto)
             await syncPhotoToCloud(cleanPhoto)
           } catch (error) {
-            console.error('Error uploading photo:', error)
+            // Log error but don't block the save process
+            // The photo will remain with url_cloud = null and can be uploaded later
+            console.warn('Error uploading photo (will retry later):', error.message || error)
           }
         }
       }
