@@ -1,5 +1,5 @@
 <template>
-  <div class="pt-20">
+  <div class="pt-16">
     <!-- Header with Icon - Fixed at Top -->
     <div class="fixed top-0 left-0 right-0 z-50 safe-area-top">
       <!-- Background with blur effect -->
@@ -124,7 +124,6 @@
           <div class="flex-1 min-w-0">
             <h3 class="font-semibold text-base mb-1">{{ intervention.client_name || 'Unnamed Client' }}</h3>
             <p class="text-sm text-base-content/70 mb-2">{{ formatDateShort(intervention.date) }}</p>
-            <p v-if="index === 0" class="text-xs text-base-content/50">Long-press for options...</p>
           </div>
           <div class="flex items-center gap-2 flex-shrink-0">
             <span

@@ -9,7 +9,18 @@ export default {
   },
   plugins: [require("daisyui")],
   daisyui: {
-    themes: ["light", "dark"],
+    themes: [
+      {
+        light: {
+          ...require("daisyui/src/theming/themes")["light"],
+          warning: "#fdd24e", // Custom warning color (amber-400)
+        },
+        dark: {
+          ...require("daisyui/src/theming/themes")["dark"],
+          warning: "#fdd24e", // Custom warning color (amber-400)
+        },
+      },
+    ],
     darkTheme: "dark",
     base: true,
     styled: true,
