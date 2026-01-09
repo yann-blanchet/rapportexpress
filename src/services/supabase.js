@@ -221,6 +221,60 @@ export async function syncCommentToCloud(comment) {
   return null
 }
 
+// Delete photo from cloud (Storage and database)
+export async function deletePhotoFromCloud(photo) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    const userId = user?.id || 'anonymous'
+    
+    // Delete from Storage if url_cloud exists
+    if (photo.url_cloud) {
+      // Extract file path from URL or construct it
+      let fileName = null
+      if (photo.url_cloud.includes('/storage/v1/object/public/')) {
+        // Extract path from public URL
+        const urlParts = photo.url_cloud.split('/storage/v1/object/public/intervention-photos/')
+        if (urlParts.length > 1) {
+          fileName = urlParts[1]
+        }
+      } else {
+        // Construct file path
+        const fileExt = photo.file_name?.split('.').pop() || 'jpg'
+        fileName = `${userId}/${photo.intervention_id}/${photo.id}.${fileExt}`
+      }
+      
+      if (fileName) {
+        try {
+          const { error: storageError } = await supabase.storage
+            .from('intervention-photos')
+            .remove([fileName])
+          
+          if (storageError) {
+            console.warn('Error deleting photo from storage:', storageError)
+            // Continue with database deletion even if storage deletion fails
+          }
+        } catch (storageErr) {
+          console.warn('Error deleting photo from storage:', storageErr)
+          // Continue with database deletion
+        }
+      }
+    }
+    
+    // Delete from photos table
+    const { error: dbError } = await supabase
+      .from('photos')
+      .delete()
+      .eq('id', photo.id)
+    
+    if (dbError) throw dbError
+    
+    return true
+  } catch (error) {
+    console.error('Error deleting photo from cloud:', error)
+    throw error
+  }
+}
+
 // Delete intervention from cloud
 export async function deleteInterventionFromCloud(interventionId) {
   try {

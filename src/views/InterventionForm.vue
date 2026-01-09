@@ -239,16 +239,31 @@
 
                   <!-- Entry Bubble -->
                   <div class="flex-1 bg-base-200 rounded-lg p-3 relative group">
-                    <!-- 3-dot menu -->
-                    <button
-                      type="button"
-                      @click.stop="showEntryMenu($event, entry)"
-                      class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity btn btn-xs btn-ghost btn-circle"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                      </svg>
-                    </button>
+                    <!-- Action buttons (3-dot menu and delete) -->
+                    <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <!-- Delete button -->
+                      <button
+                        type="button"
+                        @click.stop="deleteEntry(entry)"
+                        class="btn btn-xs btn-error btn-circle"
+                        title="Delete entry"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                      <!-- 3-dot menu -->
+                      <button
+                        type="button"
+                        @click.stop="showEntryMenu($event, entry)"
+                        class="btn btn-xs btn-ghost btn-circle"
+                        title="More options"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                        </svg>
+                      </button>
+                    </div>
 
                     <!-- Text Entry -->
                     <div v-if="entry.type === 'text'">
@@ -436,7 +451,7 @@ import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { db } from '../db/indexeddb'
 import { generateUUID } from '../utils/uuid'
-import { syncInterventionToCloud, uploadPhotoToCloud, syncPhotoToCloud, syncTagsToCloud, syncInterventionTagsToCloud } from '../services/supabase'
+import { syncInterventionToCloud, uploadPhotoToCloud, syncPhotoToCloud, syncTagsToCloud, syncInterventionTagsToCloud, deletePhotoFromCloud } from '../services/supabase'
 import { compressImage } from '../utils/imageCompression'
 import ImageEditor from '../components/ImageEditor.vue'
 import ImageViewer from '../components/ImageViewer.vue'
@@ -881,10 +896,32 @@ async function handlePhotoUpload(event) {
   event.target.value = '' // Reset input
 }
 
-function removePhoto(photoId) {
+async function removePhoto(photoId) {
   const index = photos.value.findIndex(p => p.id === photoId)
   if (index > -1) {
+    const photo = photos.value[index]
+    
+    // Remove from local array first
     photos.value.splice(index, 1)
+    
+    // Delete from IndexedDB
+    try {
+      await db.photos.delete(photoId)
+    } catch (error) {
+      console.error('Error deleting photo from IndexedDB:', error)
+    }
+    
+    // Delete from Supabase if synced (has url_cloud)
+    if (photo.url_cloud && navigator.onLine) {
+      try {
+        await deletePhotoFromCloud(photo)
+        console.log('[InterventionForm] Deleted photo from cloud:', photoId)
+      } catch (error) {
+        console.error('Error deleting photo from cloud:', error)
+        // Photo is already removed locally, so user can continue
+        // It will be cleaned up later or can be manually removed
+      }
+    }
   }
 }
 
@@ -1191,15 +1228,30 @@ function duplicateEntry(entry) {
 }
 
 function deleteEntry(entry) {
+  if (!entry) return
+  
+  // Confirm deletion
+  if (!confirm('Are you sure you want to delete this entry?')) {
+    return
+  }
+  
   const index = feedEntries.value.findIndex(e => e.id === entry.id)
   if (index > -1) {
     feedEntries.value.splice(index, 1)
     
     // Also delete associated photo/audio if needed
     if (entry.type === 'photo' && entry.photo_id) {
-      removePhoto(entry.photo_id)
+      // Remove photo from local, IndexedDB, and Supabase
+      removePhoto(entry.photo_id).catch(err => 
+        console.error('Error removing photo:', err)
+      )
     }
-    // Audio records can stay (they might be referenced elsewhere)
+    // For audio entries, delete the pending_audio record if it exists
+    if (entry.type === 'audio' && entry.pending_audio_id) {
+      db.pending_audio.delete(entry.pending_audio_id).catch(err => 
+        console.error('Error deleting pending audio:', err)
+      )
+    }
     
     // Trigger auto-save after deleting entry
     if (initialLoadComplete.value) {
