@@ -7,11 +7,14 @@
       
       <!-- Content -->
       <div class="relative container mx-auto px-4 py-4">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-success rounded-lg flex items-center justify-center">
-            <img src="/favicon-96x96.png" alt="App Icon" class="h-6 w-6" />
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-success rounded-lg flex items-center justify-center">
+              <img src="/favicon-96x96.png" alt="App Icon" class="h-6 w-6" />
+            </div>
+            <h1 class="text-2xl font-bold">Inspection Reports</h1>
           </div>
-          <h1 class="text-2xl font-bold">Inspection Reports</h1>
+          <SyncIndicator />
         </div>
       </div>
     </div>
@@ -322,6 +325,7 @@
 import { ref, computed, onMounted, onUnmounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import { db } from '../db/indexeddb'
+import SyncIndicator from '../components/SyncIndicator.vue'
 import { generateUUID } from '../utils/uuid'
 import { generatePDF } from '../services/pdf'
 import { deleteInterventionFromCloud } from '../services/supabase'
@@ -787,10 +791,16 @@ onMounted(() => {
 })
 
 // Refresh data when component is activated (user navigates back to Dashboard)
-// Note: We don't load here on initial mount to avoid double loading
-// The syncCompleted event will handle refreshing when needed
 onActivated(() => {
-  // Component activated - sync events will handle refreshes if needed
+  // Skip reload if we just mounted (within grace period) to avoid double loading
+  const timeSinceMount = Date.now() - initialMountTime
+  if (timeSinceMount < INITIAL_MOUNT_GRACE_PERIOD) {
+    return
+  }
+  
+  // Reload interventions when navigating back to dashboard
+  // This ensures new interventions appear immediately
+  loadInterventions()
 })
 
 onUnmounted(() => {

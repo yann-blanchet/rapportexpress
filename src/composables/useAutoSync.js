@@ -35,6 +35,9 @@ async function performAutoSync() {
 
   try {
     isSyncing = true
+    // Dispatch sync started event
+    window.dispatchEvent(new CustomEvent('syncStarted'))
+    
     const unsynced = await db.interventions.where('synced').equals(0).toArray()
     
     if (unsynced.length === 0) {
@@ -72,6 +75,10 @@ async function performAutoSync() {
     // Make sure we don't crash the app - errors should be logged, not cause reloads
   } finally {
     isSyncing = false
+    // Dispatch sync completed event
+    window.dispatchEvent(new CustomEvent('syncCompleted', { 
+      detail: { fromCloud: { interventions: 0, photos: 0 }, toCloud: { interventions: 0 } } 
+    }))
   }
 }
 

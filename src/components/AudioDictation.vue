@@ -84,7 +84,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { db } from '../db/indexeddb'
-import { transcribeAudio } from '../services/supabase'
 import { generateUUID } from '../utils/uuid'
 
 const props = defineProps({
@@ -94,7 +93,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['transcription'])
+const emit = defineEmits(['transcription', 'recording-started'])
 
 // State
 const isSupported = ref(false)
@@ -141,9 +140,11 @@ onMounted(async () => {
   window.addEventListener('online', handleOnline)
   window.addEventListener('offline', handleOffline)
 
-  // Process pending audio if online
+  // Trigger global background processor if online
   if (navigator.onLine) {
-    processPendingAudio()
+    import('../utils/processPendingAudio.js').then(({ processAllPendingAudio }) => {
+      processAllPendingAudio()
+    })
   }
 })
 
@@ -206,20 +207,25 @@ async function startRecording() {
       // Create blob from chunks
       const audioBlob = new Blob(audioChunks, { type: supportedMimeType })
       
-      // Save to IndexedDB
+      // Save to IndexedDB (offline-first - transcription happens in background)
       await savePendingAudio(audioBlob)
       
       cleanup()
 
-      // Try to transcribe if online
+      // Audio is saved locally - transcription will happen in background
+      // via processAllPendingAudio() which runs globally
+      statusMessage.value = 'Saved - transcribing in background...'
+      statusType.value = 'pending'
+      setTimeout(() => {
+        statusMessage.value = ''
+      }, 3000)
+      
+      // Trigger background processing if online
       if (navigator.onLine) {
-        await processPendingAudio()
-      } else {
-        statusMessage.value = 'Saved offline'
-        statusType.value = 'pending'
-        setTimeout(() => {
-          statusMessage.value = ''
-        }, 3000)
+        // Import and trigger global processor
+        import('../utils/processPendingAudio.js').then(({ processAllPendingAudio }) => {
+          processAllPendingAudio()
+        })
       }
     }
 
@@ -228,6 +234,9 @@ async function startRecording() {
     isRecording.value = true
     statusMessage.value = 'Recording...'
     statusType.value = 'info'
+    
+    // Emit recording started event
+    emit('recording-started')
   } catch (error) {
     console.error('Error starting recording:', error)
     statusMessage.value = error.message || 'Failed to start'
@@ -279,7 +288,10 @@ async function savePendingAudio(audioBlob) {
 async function handleOnline() {
   statusMessage.value = 'Processing...'
   statusType.value = 'info'
-  await processPendingAudio()
+  // Trigger global background processor
+  import('../utils/processPendingAudio.js').then(({ processAllPendingAudio }) => {
+    processAllPendingAudio()
+  })
   setTimeout(() => {
     statusMessage.value = ''
   }, 2000)
@@ -293,131 +305,13 @@ function handleOffline() {
   }, 3000)
 }
 
-async function processPendingAudio() {
-  if (!navigator.onLine || isProcessing.value) return
+// Note: Audio transcription is now handled by the global background processor
+// (processAllPendingAudio in utils/processPendingAudio.js)
+// This ensures offline-first behavior - audio is saved locally and transcribed in background
 
-  try {
-    isProcessing.value = true
-
-    // Get all pending audio for this intervention
-    const pendingAudios = await db.pending_audio
-      .where('intervention_id')
-      .equals(props.interventionId)
-      .toArray()
-
-    if (pendingAudios.length === 0) {
-      isProcessing.value = false
-      return
-    }
-
-    // Process each pending audio with rate limiting (one at a time with delay)
-    for (let i = 0; i < pendingAudios.length; i++) {
-      const pendingAudio = pendingAudios[i]
-      
-      // Add delay between requests to avoid rate limiting (except for first one)
-      if (i > 0) {
-        await new Promise(resolve => setTimeout(resolve, 2000)) // 2 second delay
-      }
-      
-      try {
-        statusMessage.value = `Transcribing ${i + 1}/${pendingAudios.length}...`
-        statusType.value = 'info'
-
-        // Convert blob to File for upload
-        const audioFile = new File(
-          [pendingAudio.audio_blob],
-          `audio_${pendingAudio.id}.${getFileExtension(pendingAudio.audio_blob.type)}`,
-          { type: pendingAudio.audio_blob.type || supportedMimeType }
-        )
-
-        // Transcribe with retry logic for rate limits
-        let transcription = null
-        let retries = 0
-        const maxRetries = 3
-        
-        while (retries < maxRetries && !transcription) {
-          try {
-            transcription = await transcribeAudio(audioFile)
-          } catch (error) {
-            // If rate limited, wait and retry
-            if (error.message?.includes('Rate limit') && retries < maxRetries - 1) {
-              const waitTime = Math.pow(2, retries) * 2000 // Exponential backoff: 2s, 4s, 8s
-              statusMessage.value = `Rate limited, waiting ${waitTime/1000}s...`
-              await new Promise(resolve => setTimeout(resolve, waitTime))
-              retries++
-              continue
-            }
-            throw error
-          }
-        }
-        
-        if (!transcription) {
-          throw new Error('Failed after retries')
-        }
-
-        if (transcription && transcription.trim()) {
-          // Emit transcription event
-          emit('transcription', transcription.trim())
-
-          statusMessage.value = 'Transcribed!'
-          statusType.value = 'success'
-        } else {
-          throw new Error('Empty transcription')
-        }
-
-        // Delete from IndexedDB
-        await db.pending_audio.delete(pendingAudio.id)
-        await updatePendingCount()
-
-      } catch (error) {
-        console.error('Error transcribing audio:', error)
-        // Keep the audio in IndexedDB for retry
-        const errorMsg = error.message || 'Transcription failed'
-        if (errorMsg.includes('quota') || errorMsg.includes('billing')) {
-          statusMessage.value = 'OpenAI quota exceeded - check billing'
-        } else if (errorMsg.includes('Rate limit')) {
-          statusMessage.value = 'Rate limited - will retry later'
-        } else {
-          statusMessage.value = 'Failed - will retry'
-        }
-        statusType.value = 'error'
-        
-        // If rate limited, stop processing remaining audio to avoid more rate limits
-        if (errorMsg.includes('Rate limit')) {
-          console.log('Rate limited - stopping batch processing to avoid further limits')
-          break
-        }
-      }
-    }
-
-    setTimeout(() => {
-      statusMessage.value = ''
-    }, 2000)
-
-  } catch (error) {
-    console.error('Error processing pending audio:', error)
-    statusMessage.value = 'Error processing'
-    statusType.value = 'error'
-    setTimeout(() => {
-      statusMessage.value = ''
-    }, 3000)
-  } finally {
-    isProcessing.value = false
-  }
-}
-
-function getFileExtension(mimeType) {
-  if (mimeType.includes('webm')) return 'webm'
-  if (mimeType.includes('mp4')) return 'mp4'
-  if (mimeType.includes('ogg')) return 'ogg'
-  if (mimeType.includes('wav')) return 'wav'
-  return 'webm'
-}
-
-// Expose method to manually trigger processing
-defineExpose({
-  processPending: processPendingAudio
-})
+// Note: getFileExtension is no longer needed here since transcription is handled globally
+// Audio transcription is now handled by the global background processor
+// (processAllPendingAudio in utils/processPendingAudio.js)
 </script>
 
 <style scoped>

@@ -305,7 +305,11 @@ export async function syncFromCloud(db) {
           // Conflict resolution: Use newer version (last write wins)
           // If local is newer and unsynced, we'll push it to cloud in performAutoSync
           // If cloud is newer or equal, use cloud data
-          if (cloudUpdated >= localUpdated) {
+          // Skip if local was just synced (within last 2 seconds) to prevent race conditions
+          const timeDiff = cloudUpdated.getTime() - localUpdated.getTime()
+          const justSynced = timeDiff >= 0 && timeDiff < 2000 // Within 2 seconds
+          
+          if (cloudUpdated >= localUpdated && !justSynced) {
             await db.interventions.put({
               id: cloudIntervention.id,
               client_name: cloudIntervention.client_name,
@@ -323,6 +327,9 @@ export async function syncFromCloud(db) {
                 : []
             })
             interventionsSynced++
+          } else if (justSynced) {
+            // Skip - local was just synced, don't overwrite
+            console.log(`[Sync From Cloud] Skipping ${cloudIntervention.id} - just synced locally`)
           } else {
             // Local is newer - keep local, but mark for sync to cloud
             // This will be handled by performAutoSync

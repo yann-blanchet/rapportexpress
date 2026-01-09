@@ -34,7 +34,7 @@
             </div>
           </div>
         </div>
-        <div class="flex gap-2">
+        <div class="flex items-center gap-2">
           <div
             :class="[
               'badge badge-lg',
@@ -45,9 +45,7 @@
           >
             {{ intervention.status || 'In Progress' }}
           </div>
-          <div v-if="!intervention.synced" class="badge badge-lg badge-error badge-outline" title="Not synced">
-            Offline
-          </div>
+          <SyncIndicator />
         </div>
       </div>
 
@@ -192,6 +190,7 @@
 import { ref, computed, onMounted, onActivated, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { db } from '../db/indexeddb'
+import SyncIndicator from '../components/SyncIndicator.vue'
 import { generatePDF } from '../services/pdf'
 import { deleteInterventionFromCloud } from '../services/supabase'
 import ImageViewer from '../components/ImageViewer.vue'

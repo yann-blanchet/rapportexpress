@@ -1,6 +1,9 @@
 <template>
   <div>
-    <h1 class="text-3xl font-bold mb-6">Settings</h1>
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-3xl font-bold">Settings</h1>
+      <SyncIndicator />
+    </div>
 
     <!-- Tab Bar -->
     <div class="tabs tabs-lifted mb-4">
@@ -279,6 +282,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { db } from '../db/indexeddb'
 import { supabase, syncInterventionToCloud, syncPhotoToCloud, syncFromCloud } from '../services/supabase'
+import SyncIndicator from '../components/SyncIndicator.vue'
 
 const activeTab = ref('profile')
 const themeMode = ref('auto')
@@ -487,6 +491,9 @@ async function manualSync() {
   }
 
   syncing.value = true
+  // Dispatch sync started event
+  window.dispatchEvent(new CustomEvent('syncStarted'))
+  
   try {
     // First, pull data from Supabase
     const fromCloud = await syncFromCloud(db)

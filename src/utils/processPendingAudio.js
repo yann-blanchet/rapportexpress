@@ -33,6 +33,14 @@ export async function processAllPendingAudio() {
       }
       
       try {
+        // Notify that transcription is starting (for feed entry status update)
+        window.dispatchEvent(new CustomEvent('audioTranscribing', {
+          detail: {
+            interventionId: pendingAudio.intervention_id,
+            pendingAudioId: pendingAudio.id
+          }
+        }))
+        
         // Convert blob to File for upload
         const audioFile = new File(
           [pendingAudio.audio_blob],
@@ -67,14 +75,16 @@ export async function processAllPendingAudio() {
 
         if (transcription && transcription.trim()) {
           // Dispatch event so components can handle the transcription
+          // This will update feed entries in InterventionForm
           window.dispatchEvent(new CustomEvent('audioTranscribed', {
             detail: {
               interventionId: pendingAudio.intervention_id,
+              pendingAudioId: pendingAudio.id,
               transcription: transcription.trim()
             }
           }))
 
-          // Delete from IndexedDB
+          // Delete from IndexedDB after successful transcription
           await db.pending_audio.delete(pendingAudio.id)
           console.log(`[PendingAudio] Transcribed and deleted audio ${pendingAudio.id}`)
         } else {

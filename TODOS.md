@@ -1,6 +1,8 @@
-duplicate inter
+intervnetion form : add header (with 'intervention' + #112) and tab summary and remove info tab
+when tap header display a bottom sheet to edit general infos
+
 editer image
-vocal + transcription
+
 auto generating inter name : Inspection – Client Name – 12 Jan 2026
 
 

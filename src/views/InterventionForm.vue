@@ -1,17 +1,20 @@
 <template>
   <div class="pb-20">
-    <div class="flex items-center gap-3 mb-6">
-      <router-link to="/" class="btn btn-ghost btn-circle btn-sm">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-        </svg>
-      </router-link>
-      <h1 class="text-3xl font-bold">
-        {{ isEdit ? 'Edit Intervention' : 'Create New Intervention' }}
-      </h1>
+    <div class="flex items-center justify-between gap-3 mb-6">
+      <div class="flex items-center gap-3">
+        <router-link to="/" class="btn btn-ghost btn-circle btn-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </router-link>
+        <h1 class="text-3xl font-bold">
+          {{ isEdit ? 'Edit Intervention' : 'Create New Intervention' }}
+        </h1>
+      </div>
+      <SyncIndicator />
     </div>
 
-    <form @submit.prevent="saveIntervention">
+    <div>
       <!-- Tab Bar -->
       <div class="tabs tabs-lifted mb-4">
         <button
@@ -30,17 +33,10 @@
         </button>
         <button
           type="button"
-          @click="activeTab = 'photos'"
-          :class="['tab', activeTab === 'photos' ? 'tab-active' : '']"
+          @click="activeTab = 'feed'"
+          :class="['tab', activeTab === 'feed' ? 'tab-active' : '']"
         >
-          Photos
-        </button>
-        <button
-          type="button"
-          @click="activeTab = 'comments'"
-          :class="['tab', activeTab === 'comments' ? 'tab-active' : '']"
-        >
-          Comments
+          Feed
         </button>
       </div>
 
@@ -208,129 +204,207 @@
             </div>
           </div>
 
-          <!-- Photos Tab -->
-          <div v-show="activeTab === 'photos'">
-            <div class="flex justify-between items-center mb-4">
-              <h2 class="card-title">Photos</h2>
-              <input
-                type="file"
-                ref="photoInput"
-                @change="handlePhotoUpload"
-                accept="image/*"
-                capture="environment"
-                class="hidden"
-              />
-              <button
-                type="button"
-                @click="$refs.photoInput.click()"
-                class="btn btn-sm btn-primary btn-circle"
-                title="Add Photo"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
+          <!-- Feed Tab (WhatsApp-style: text, photos, audio) -->
+          <div v-show="activeTab === 'feed'">
+            <div class="mb-4">
+              <h2 class="card-title">Feed</h2>
             </div>
 
-            <div v-if="photos.length === 0" class="text-center py-4 text-base-content/70">
-              No photos added yet.
-            </div>
-
-            <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <!-- Feed Entries (WhatsApp-style) -->
+            <div ref="feedContainer" class="space-y-4 mb-4 max-h-96 overflow-y-auto">
               <div
-                v-for="(photo, index) in photos"
-                :key="photo.id"
-                class="relative"
+                v-for="entry in feedEntries"
+                :key="entry.id"
+                class="flex flex-col gap-2"
+                @contextmenu.prevent="showEntryMenu($event, entry)"
+                @touchstart="handleEntryTouchStart(entry)"
+                @touchend="handleEntryTouchEnd"
               >
-                <img
-                  :src="getPhotoUrl(photo)"
-                  alt="Intervention photo"
-                  class="w-full h-32 object-cover rounded-lg cursor-pointer"
-                  @click="openImageViewer(index)"
-                  @error="handleImageError($event, photo)"
-                />
-                <input
-                  type="text"
-                  v-model="photo.description"
-                  placeholder="Photo description"
-                  class="input input-bordered input-sm mt-2 w-full"
-                />
-                <div class="absolute top-2 right-2 flex gap-1">
-                  <button
-                    type="button"
-                    @click.stop="openImageEditor(photo)"
-                    class="btn btn-sm btn-primary btn-circle"
-                    title="Edit image"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    @click.stop="removePhoto(photo.id)"
-                    class="btn btn-sm btn-error btn-circle"
-                  >
-                    ×
-                  </button>
+                <!-- Entry Content -->
+                <div class="flex items-start gap-3">
+                  <!-- Avatar/Bubble -->
+                  <div class="flex-shrink-0">
+                    <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-content text-xs">
+                      <svg v-if="entry.type === 'text'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      <svg v-else-if="entry.type === 'photo'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <svg v-else-if="entry.type === 'audio'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  <!-- Entry Bubble -->
+                  <div class="flex-1 bg-base-200 rounded-lg p-3 relative group">
+                    <!-- 3-dot menu -->
+                    <button
+                      type="button"
+                      @click.stop="showEntryMenu($event, entry)"
+                      class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity btn btn-xs btn-ghost btn-circle"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                      </svg>
+                    </button>
+
+                    <!-- Text Entry -->
+                    <div v-if="entry.type === 'text'">
+                      <p class="text-sm whitespace-pre-wrap">{{ entry.text }}</p>
+                    </div>
+
+                    <!-- Photo Entry -->
+                    <div v-else-if="entry.type === 'photo'">
+                      <div v-if="getPhotoById(entry.photo_id)" class="relative">
+                        <img
+                          :src="getPhotoUrl(getPhotoById(entry.photo_id))"
+                          alt="Photo"
+                          class="w-full max-w-xs rounded-lg cursor-pointer"
+                          @click="openPhotoViewer(entry.photo_id)"
+                          @error="handleImageError($event, getPhotoById(entry.photo_id))"
+                        />
+                        <div v-if="entry.status === 'uploading'" class="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center z-10">
+                          <span class="loading loading-spinner loading-md text-white"></span>
+                        </div>
+                        <div v-if="entry.status === 'pending'" class="absolute top-2 right-2 badge badge-warning badge-sm z-10">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Pending upload
+                        </div>
+                        <div v-if="entry.status === 'completed' && getPhotoById(entry.photo_id)?.url_cloud" class="absolute top-2 right-2 badge badge-success badge-sm z-10 opacity-70">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div v-else class="text-xs text-base-content/70">Photo not found</div>
+                    </div>
+
+                    <!-- Audio Entry -->
+                    <div v-else-if="entry.type === 'audio'">
+                      <div v-if="entry.status === 'transcribing'" class="flex items-center gap-2">
+                        <span class="loading loading-spinner loading-sm"></span>
+                        <span class="text-xs">Transcribing...</span>
+                      </div>
+                      <div v-else-if="entry.status === 'pending'" class="flex items-center gap-2">
+                        <span class="badge badge-warning badge-sm">Pending transcription</span>
+                      </div>
+                      <div v-else-if="entry.transcription">
+                        <p class="text-sm">{{ entry.transcription }}</p>
+                        <div v-if="entry.pending_audio_id" class="text-xs text-base-content/70 mt-1">
+                          Audio stored locally
+                        </div>
+                      </div>
+                      <div v-else class="text-xs text-base-content/70">
+                        Processing audio...
+                      </div>
+                    </div>
+
+                    <!-- Timestamp -->
+                    <p class="text-xs text-base-content/70 mt-2">
+                      {{ formatDate(entry.created_at) }}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <!-- Comments Tab -->
-          <div v-show="activeTab === 'comments'">
-            <div class="mb-4">
-              <h2 class="card-title">Comments</h2>
-            </div>
-            <!-- Audio Dictation Button -->
-            <div class="mb-3 flex items-center gap-2">
-              <AudioDictation
-                :intervention-id="currentInterventionId"
-                @transcription="handleDictationTranscription"
-                ref="audioDictationRef"
-              />
-              <span class="text-xs text-base-content/70">Hold to record voice note</span>
+              <div v-if="feedEntries.length === 0" class="text-center py-8 text-base-content/70">
+                No entries yet. Add text, photos, or audio below.
+              </div>
             </div>
 
-            <textarea
-              v-model="commentText"
-              placeholder="Enter comments or notes... (or use voice dictation above)"
-              class="textarea textarea-bordered h-32 w-full mb-3"
-            ></textarea>
-            
-            <!-- Send Button -->
-            <button
-              type="button"
-              @click="addComment"
-              class="btn btn-primary w-full"
-              :disabled="!commentText.trim()"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
-              Send
-            </button>
+            <!-- Input Area (WhatsApp-style bottom input) -->
+            <div class="border-t pt-4 space-y-3">
+              <!-- Text Input -->
+              <textarea
+                v-model="feedTextInput"
+                placeholder="Type a message..."
+                class="textarea textarea-bordered w-full"
+                rows="2"
+                @keydown.ctrl.enter="addFeedEntry('text')"
+                @keydown.meta.enter="addFeedEntry('text')"
+              ></textarea>
 
-            <div v-if="comments.length > 0" class="mt-4 space-y-2">
-              <div
-                v-for="comment in comments"
-                :key="comment.id"
-                class="p-3 bg-base-200 rounded-lg"
-              >
-                <p class="text-sm">{{ comment.text }}</p>
-                <p class="text-xs text-base-content/70 mt-1">
-                  {{ formatDate(comment.created_at) }}
-                </p>
+              <!-- Action Buttons -->
+              <div class="flex items-center gap-2">
+                <!-- Photo Button -->
+                <input
+                  type="file"
+                  ref="feedPhotoInput"
+                  @change="handleFeedPhotoUpload"
+                  accept="image/*"
+                  capture="environment"
+                  class="hidden"
+                />
+                <button
+                  type="button"
+                  @click="$refs.feedPhotoInput.click()"
+                  class="btn btn-sm btn-circle btn-primary"
+                  title="Add Photo"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </button>
+
+                <!-- Audio Button -->
+                <AudioDictation
+                  :intervention-id="currentInterventionId"
+                  @transcription="handleFeedAudioTranscription"
+                  ref="feedAudioDictationRef"
+                />
+
+                <!-- Send Button -->
+                <button
+                  type="button"
+                  @click="addFeedEntry('text')"
+                  class="btn btn-sm btn-primary flex-1"
+                  :disabled="!feedTextInput.trim()"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                  Send
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Spacer for bottom bar -->
-      <div class="h-20"></div>
-    </form>
+    </div>
+
+    <!-- Entry Context Menu -->
+    <div
+      v-if="entryMenu.show"
+      class="fixed z-50 bg-base-100 border border-base-300 rounded-lg shadow-lg p-2 min-w-32"
+      :style="{ left: entryMenu.x + 'px', top: entryMenu.y + 'px' }"
+      @click.stop
+    >
+      <button
+        type="button"
+        @click="duplicateEntry(entryMenu.entry)"
+        class="btn btn-sm btn-ghost w-full justify-start"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+        Duplicate
+      </button>
+      <button
+        type="button"
+        @click="deleteEntry(entryMenu.entry)"
+        class="btn btn-sm btn-ghost text-error w-full justify-start"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+        Delete
+      </button>
+    </div>
 
     <!-- Image Editor -->
     <ImageEditor
@@ -346,37 +420,19 @@
       :initial-index="imageViewer.index"
     />
 
-    <!-- Bottom Action Bar -->
-    <div class="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">
-      <!-- Background with blur effect -->
-      <div class="absolute inset-0 bg-base-100/95 backdrop-blur-xl border-t border-base-300/50"></div>
-      
-      <!-- Content -->
-      <div class="relative max-w-md mx-auto px-4 py-3">
-        <div class="flex gap-3">
-          <router-link to="/" class="btn btn-ghost flex-1">
-            Cancel
-          </router-link>
-          <button 
-            type="button"
-            @click="saveIntervention" 
-            class="btn btn-primary flex-1 font-semibold" 
-            :disabled="saving || !form.client_name.trim()"
-          >
-            <span v-if="saving" class="loading loading-spinner loading-sm"></span>
-            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-            {{ saving ? 'Saving...' : 'Save' }}
-          </button>
-        </div>
+    <!-- Auto-save indicator -->
+    <div v-if="autoSaving || lastSaved" class="fixed bottom-4 right-4 z-50">
+      <div class="badge badge-sm" :class="autoSaving ? 'badge-info' : 'badge-success'">
+        <span v-if="autoSaving" class="loading loading-spinner loading-xs mr-1"></span>
+        <span v-else class="mr-1">✓</span>
+        {{ autoSaving ? 'Saving...' : 'Saved' }}
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { db } from '../db/indexeddb'
 import { generateUUID } from '../utils/uuid'
@@ -385,6 +441,7 @@ import { compressImage } from '../utils/imageCompression'
 import ImageEditor from '../components/ImageEditor.vue'
 import ImageViewer from '../components/ImageViewer.vue'
 import AudioDictation from '../components/AudioDictation.vue'
+import SyncIndicator from '../components/SyncIndicator.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -406,6 +463,7 @@ const currentInterventionId = computed(() => {
   return tempInterventionId.value
 })
 const tempInterventionId = ref(null)
+const loadedInterventionId = ref(null) // Store the ID of the intervention we're editing
 
 const form = ref({
   client_name: '',
@@ -415,13 +473,28 @@ const form = ref({
 
 const checklistItems = ref([])
 const photos = ref([])
-const comments = ref([])
-const commentText = ref('')
+const comments = ref([]) // Old comments structure (for migration)
+const commentText = ref('') // Old comment text (for migration)
 const selectedTags = ref([]) // Tags selected for this intervention
 const availableTags = ref([]) // All available tags from database
 const filteredAvailableTags = ref([]) // Filtered tags for suggestions
 const tagInput = ref('')
 const showTagSuggestions = ref(false)
+
+// Feed state (unified feed)
+const feedEntries = ref([]) // Unified feed entries (text, photo, audio)
+const feedTextInput = ref('')
+const feedPhotoInput = ref(null)
+const feedContainer = ref(null) // Ref for feed container (for auto-scroll)
+
+// Auto-save state
+const autoSaving = ref(false)
+const lastSaved = ref(false)
+const autoSaveTimeout = ref(null)
+const feedAudioDictationRef = ref(null)
+const entryMenu = ref({ show: false, entry: null, x: 0, y: 0 })
+const longPressTimer = ref(null)
+const initialLoadComplete = ref(false)
 
 // Image Editor State
 const imageEditor = ref({
@@ -438,6 +511,10 @@ const imageViewer = ref({
 async function loadIntervention() {
   if (route.params.id) {
     isEdit.value = true
+    // Store the intervention ID we're editing
+    loadedInterventionId.value = route.params.id
+    // Clear temp ID when editing existing intervention
+    tempInterventionId.value = null
     try {
       const intervention = await db.interventions.get(route.params.id)
       if (intervention) {
@@ -462,28 +539,182 @@ async function loadIntervention() {
           .where('intervention_id').equals(route.params.id)
           .toArray()
 
-        // Load comments from JSONB column
-        comments.value = Array.isArray(intervention.comments)
-          ? intervention.comments.map(comment => ({
-              id: comment.id || generateUUID(),
-              text: comment.text || '',
-              created_at: comment.created_at || new Date().toISOString()
-            }))
+        // Load feed entries from JSONB column (new unified structure)
+        feedEntries.value = Array.isArray(intervention.comments)
+          ? intervention.comments
+              .filter(entry => entry.type) // Only entries with type (new format)
+              .map(entry => {
+                // For photo entries, check if photo has url_cloud to determine status
+                let status = entry.status || 'completed'
+                if (entry.type === 'photo' && entry.photo_id) {
+                  const photo = photos.value.find(p => p.id === entry.photo_id)
+                  if (photo) {
+                    // If photo doesn't have url_cloud, it's pending upload
+                    if (!photo.url_cloud) {
+                      status = 'pending'
+                    } else {
+                      status = 'completed'
+                    }
+                  }
+                }
+                return {
+                  id: entry.id || generateUUID(),
+                  type: entry.type || 'text',
+                  text: entry.text || '',
+                  photo_id: entry.photo_id || null,
+                  transcription: entry.transcription || null,
+                  pending_audio_id: entry.pending_audio_id || null,
+                  created_at: entry.created_at || new Date().toISOString(),
+                  status: status
+                }
+              })
+              .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
           : []
+        
+        // Load old comments format for migration
+        comments.value = Array.isArray(intervention.comments)
+          ? intervention.comments
+              .filter(entry => !entry.type) // Old format entries
+              .map(comment => ({
+                id: comment.id || generateUUID(),
+                text: comment.text || '',
+                created_at: comment.created_at || new Date().toISOString()
+              }))
+          : []
+        
+        // Check for pending audio (for status display)
+        const pendingAudios = await db.pending_audio
+          .where('intervention_id')
+          .equals(route.params.id)
+          .toArray()
+        
+        // Update feed entries with pending audio status
+        for (const entry of feedEntries.value) {
+          if (entry.type === 'audio' && entry.pending_audio_id) {
+            const pendingAudio = pendingAudios.find(pa => pa.id === entry.pending_audio_id)
+            if (pendingAudio && !entry.transcription) {
+              entry.status = 'pending'
+            }
+          }
+        }
 
         // Load tags from junction table
         await loadInterventionTags(route.params.id)
+        
+        // Offline-first: Load images from local storage first
+        // Then trigger background sync if online and there are unsynced items
+        if (navigator.onLine) {
+          // Check if intervention needs syncing
+          const needsSync = !intervention.synced || 
+            photos.value.some(p => p.url_local && !p.url_cloud)
+          
+          if (needsSync) {
+            // Trigger background sync (non-blocking, offline-first)
+            // Load images from local first, then sync in background
+            syncInterventionToCloudBackground(intervention, route.params.id).catch(err => 
+              console.error('Background sync error on load:', err)
+            )
+          }
+        }
       }
     } catch (error) {
       console.error('Error loading intervention:', error)
     }
   } else {
+    // New intervention - clear loaded ID
+    loadedInterventionId.value = null
     // Initialize tags for new intervention
     selectedTags.value = []
   }
   
   // Load all available tags
   await loadAvailableTags()
+  
+  // Listen for audio transcription events from global processor
+  window.addEventListener('audioTranscribed', handleGlobalAudioTranscription)
+  window.addEventListener('audioTranscribing', handleGlobalAudioTranscribing)
+  
+  // Mark initial load as complete (after all data is loaded)
+  // Use nextTick to ensure all reactive updates are complete
+  await nextTick()
+  initialLoadComplete.value = true
+}
+
+function handleGlobalAudioTranscribing(event) {
+  const { interventionId, pendingAudioId } = event.detail
+  
+  // Only handle if it's for the current intervention
+  if (interventionId === currentInterventionId.value || interventionId === route.params.id) {
+    // Find the feed entry matching the pending audio ID
+    const entry = feedEntries.value.find(e => 
+      e.type === 'audio' && 
+      e.pending_audio_id === pendingAudioId
+    )
+    
+    // Update status to "transcribing"
+    if (entry && entry.status === 'pending') {
+      entry.status = 'transcribing'
+      // Trigger auto-save after status change
+      if (initialLoadComplete.value) {
+        autoSave()
+      }
+    }
+  }
+}
+
+function handleGlobalAudioTranscription(event) {
+  const { interventionId, pendingAudioId, transcription } = event.detail
+  
+  // Only handle if it's for the current intervention
+  if (interventionId === currentInterventionId.value || interventionId === route.params.id) {
+    // Find the feed entry matching the pending audio ID
+    let entry = feedEntries.value.find(e => 
+      e.type === 'audio' && 
+      e.pending_audio_id === pendingAudioId
+    )
+    
+    // If not found by pending_audio_id, find most recent pending entry
+    if (!entry) {
+      entry = feedEntries.value
+        .filter(e => e.type === 'audio' && e.status === 'pending' && !e.transcription)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]
+    }
+    
+    if (entry) {
+      // Update existing entry with transcription
+      entry.transcription = transcription
+      entry.status = 'completed'
+      // Clear pending_audio_id since it's been transcribed
+      entry.pending_audio_id = null
+      
+      // Scroll to bottom when transcription completes
+      scrollFeedToBottom()
+      
+      // Trigger auto-save after transcription update
+      if (initialLoadComplete.value) {
+        autoSave()
+      }
+    } else {
+      // Create new entry if none found (shouldn't happen, but fallback)
+      const newEntry = {
+        id: generateUUID(),
+        type: 'audio',
+        transcription: transcription,
+        pending_audio_id: null,
+        created_at: new Date().toISOString(),
+        status: 'completed'
+      }
+      feedEntries.value.push(newEntry)
+      
+      // Scroll to bottom after adding fallback audio entry
+      scrollFeedToBottom()
+      
+      // Trigger auto-save after adding fallback audio entry
+      if (initialLoadComplete.value) {
+        autoSave()
+      }
+    }
+  }
 }
 
 async function loadAvailableTags() {
@@ -715,6 +946,285 @@ function handleDictationTranscription(transcription) {
   })
 }
 
+// Scroll feed to bottom
+function scrollFeedToBottom() {
+  nextTick(() => {
+    if (feedContainer.value) {
+      feedContainer.value.scrollTop = feedContainer.value.scrollHeight
+    }
+  })
+}
+
+// Feed Functions
+function addFeedEntry(type) {
+  if (type === 'text' && !feedTextInput.value.trim()) return
+  
+  const entry = {
+    id: generateUUID(),
+    type: type,
+    text: type === 'text' ? feedTextInput.value.trim() : '',
+    photo_id: null,
+    transcription: null,
+    pending_audio_id: null,
+    created_at: new Date().toISOString(),
+    status: 'completed'
+  }
+  
+  feedEntries.value.push(entry)
+  feedTextInput.value = ''
+  
+  // Scroll to bottom after adding entry
+  scrollFeedToBottom()
+  
+  // Trigger auto-save after adding text entry
+  if (initialLoadComplete.value) {
+    autoSave()
+  }
+}
+
+async function handleFeedPhotoUpload(event) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  const photoId = generateUUID()
+  const reader = new FileReader()
+  
+  reader.onload = async (e) => {
+    // Create photo object with base64 local storage (offline-first)
+    const photo = {
+      id: photoId,
+      intervention_id: currentInterventionId.value,
+      url_local: e.target.result, // Base64 data URL - stored locally
+      url_cloud: null, // Will be set during sync
+      description: '',
+      taken_at: new Date().toISOString(),
+      file_name: file.name,
+      file_type: file.type,
+      file_size: file.size
+    }
+    
+    // Save to IndexedDB immediately (offline-first)
+    await db.photos.put(photo)
+    photos.value.push(photo)
+    
+    // Create feed entry for photo
+    const entry = {
+      id: generateUUID(),
+      type: 'photo',
+      photo_id: photoId,
+      created_at: new Date().toISOString(),
+      status: navigator.onLine ? 'pending' : 'pending' // Will be uploaded during sync
+    }
+    
+    feedEntries.value.push(entry)
+    
+    // Scroll to bottom after adding photo entry
+    scrollFeedToBottom()
+    
+    // Trigger auto-save after adding photo entry
+    if (initialLoadComplete.value) {
+      autoSave()
+    }
+    
+    // Note: Photo upload to Supabase Storage happens during sync, not immediately
+    // This ensures offline-first behavior - photos are always saved locally first
+  }
+  
+  reader.readAsDataURL(file)
+  event.target.value = ''
+}
+
+async function handleFeedAudioRecordingStarted() {
+  // Create a pending audio entry immediately when recording starts
+  // The pending_audio_id will be set when the audio is saved to IndexedDB
+  const entry = {
+    id: generateUUID(),
+    type: 'audio',
+    transcription: null,
+    pending_audio_id: null, // Will be set when audio blob is saved
+    created_at: new Date().toISOString(),
+    status: 'pending'
+  }
+  
+  feedEntries.value.push(entry)
+  
+  // Scroll to bottom when recording starts
+  scrollFeedToBottom()
+  
+  // Wait a bit for the audio to be saved, then update the entry with pending_audio_id
+  setTimeout(async () => {
+    const pendingAudios = await db.pending_audio
+      .where('intervention_id')
+      .equals(currentInterventionId.value)
+      .toArray()
+    
+    const mostRecent = pendingAudios.sort((a, b) => 
+      new Date(b.created_at) - new Date(a.created_at)
+    )[0]
+    
+    if (mostRecent && entry.status === 'pending' && !entry.pending_audio_id) {
+      entry.pending_audio_id = mostRecent.id
+    }
+  }, 500)
+}
+
+async function handleFeedAudioTranscription(transcription) {
+  // Find the most recent pending audio entry in feed (created when recording started)
+  const pendingAudioEntries = feedEntries.value
+    .filter(e => e.type === 'audio' && e.status === 'pending' && !e.transcription)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  
+  if (pendingAudioEntries.length > 0) {
+    // Update existing pending entry with transcription
+    const entry = pendingAudioEntries[0]
+    entry.transcription = transcription
+    entry.status = 'completed'
+  } else {
+    // Create new entry if none found (shouldn't happen, but fallback)
+    const pendingAudios = await db.pending_audio
+      .where('intervention_id')
+      .equals(currentInterventionId.value)
+      .toArray()
+    
+    const pendingAudio = pendingAudios.sort((a, b) => 
+      new Date(b.created_at) - new Date(a.created_at)
+    )[0]
+    
+    const entry = {
+      id: generateUUID(),
+      type: 'audio',
+      transcription: transcription,
+      pending_audio_id: pendingAudio?.id || null,
+      created_at: pendingAudio?.created_at || new Date().toISOString(),
+      status: 'completed'
+    }
+    
+    feedEntries.value.push(entry)
+    
+    // Scroll to bottom after adding audio entry
+    scrollFeedToBottom()
+    
+    // Trigger auto-save after adding audio entry
+    if (initialLoadComplete.value) {
+      autoSave()
+    }
+  }
+}
+
+
+function getPhotoById(photoId) {
+  return photos.value.find(p => p.id === photoId)
+}
+
+
+function openPhotoViewer(photoId) {
+  const index = photos.value.findIndex(p => p.id === photoId)
+  if (index > -1) {
+    openImageViewer(index)
+  }
+}
+
+function showEntryMenu(event, entry) {
+  event.stopPropagation()
+  const x = event.clientX || event.touches?.[0]?.clientX || window.innerWidth / 2
+  const y = event.clientY || event.touches?.[0]?.clientY || window.innerHeight / 2
+  
+  entryMenu.value = {
+    show: true,
+    entry: entry,
+    x: Math.min(x, window.innerWidth - 150), // Keep menu on screen
+    y: Math.min(y, window.innerHeight - 100)
+  }
+  
+  // Close menu when clicking outside
+  setTimeout(() => {
+    const closeMenu = (e) => {
+      if (!e.target.closest('.fixed.z-50')) {
+        entryMenu.value.show = false
+        document.removeEventListener('click', closeMenu)
+      }
+    }
+    document.addEventListener('click', closeMenu)
+  }, 100)
+}
+
+function duplicateEntry(entry) {
+  const duplicated = {
+    ...entry,
+    id: generateUUID(),
+    created_at: new Date().toISOString()
+  }
+  
+  // If it's a photo entry, duplicate the photo too
+  if (entry.type === 'photo' && entry.photo_id) {
+    const originalPhoto = getPhotoById(entry.photo_id)
+    if (originalPhoto) {
+      const newPhotoId = generateUUID()
+      const newPhoto = {
+        ...originalPhoto,
+        id: newPhotoId,
+        taken_at: new Date().toISOString()
+      }
+      photos.value.push(newPhoto)
+      duplicated.photo_id = newPhotoId
+    }
+  }
+  
+  // For audio entries, don't duplicate pending_audio_id (it's already transcribed)
+  if (entry.type === 'audio') {
+    duplicated.pending_audio_id = null
+  }
+  
+  // Remove tags from duplicated entry (tags are only for interventions, not feed entries)
+  delete duplicated.tags
+  
+  feedEntries.value.push(duplicated)
+  entryMenu.value.show = false
+  
+  // Scroll to bottom after duplicating entry
+  scrollFeedToBottom()
+  
+  // Trigger auto-save after duplicating entry
+  if (initialLoadComplete.value) {
+    autoSave()
+  }
+}
+
+function deleteEntry(entry) {
+  const index = feedEntries.value.findIndex(e => e.id === entry.id)
+  if (index > -1) {
+    feedEntries.value.splice(index, 1)
+    
+    // Also delete associated photo/audio if needed
+    if (entry.type === 'photo' && entry.photo_id) {
+      removePhoto(entry.photo_id)
+    }
+    // Audio records can stay (they might be referenced elsewhere)
+    
+    // Trigger auto-save after deleting entry
+    if (initialLoadComplete.value) {
+      autoSave()
+    }
+  }
+  entryMenu.value.show = false
+}
+
+let touchStartTime = 0
+function handleEntryTouchStart(entry) {
+  touchStartTime = Date.now()
+  longPressTimer.value = setTimeout(() => {
+    showEntryMenu({ touches: [{ clientX: 0, clientY: 0 }] }, entry)
+  }, 500) // 500ms long press
+}
+
+function handleEntryTouchEnd() {
+  if (longPressTimer.value) {
+    clearTimeout(longPressTimer.value)
+    longPressTimer.value = null
+  }
+}
+
+// Old comment function (kept for backward compatibility during migration)
 function addComment() {
   if (!commentText.value.trim()) return
   
@@ -755,32 +1265,78 @@ function formatDate(dateString) {
   return new Date(dateString).toLocaleString()
 }
 
-async function saveIntervention() {
-  saving.value = true
-  
+// Save to local DB only (instant, non-blocking)
+async function saveInterventionLocal() {
   try {
-    // Use temp ID if we have one (for new interventions with dictation)
-    const interventionId = route.params.id || tempInterventionId.value || generateUUID()
-    // Update temp ID if we just generated one
-    if (!route.params.id && !tempInterventionId.value) {
-      tempInterventionId.value = interventionId
+    // Determine intervention ID:
+    // 1. If we have a loaded intervention ID (editing), use it
+    // 2. If route.params.id exists (editing), use it
+    // 3. Otherwise, use temp ID or generate one (creating)
+    let interventionId
+    if (loadedInterventionId.value) {
+      // We're editing - use the loaded intervention ID
+      interventionId = loadedInterventionId.value
+      // Clear temp ID if it was set (shouldn't happen in edit mode, but safety check)
+      if (tempInterventionId.value && tempInterventionId.value !== interventionId) {
+        console.warn('[InterventionForm] Clearing tempInterventionId in edit mode:', tempInterventionId.value)
+        tempInterventionId.value = null
+      }
+    } else if (route.params.id) {
+      // Route has ID but we haven't loaded yet - use route ID (shouldn't happen, but safety)
+      interventionId = route.params.id
+      loadedInterventionId.value = route.params.id // Store it
+      // Clear temp ID
+      if (tempInterventionId.value && tempInterventionId.value !== interventionId) {
+        console.warn('[InterventionForm] Clearing tempInterventionId in edit mode:', tempInterventionId.value)
+        tempInterventionId.value = null
+      }
+    } else {
+      // New intervention - use temp ID or generate one
+      interventionId = tempInterventionId.value || generateUUID()
+      // Update temp ID if we just generated one
+      if (!tempInterventionId.value) {
+        tempInterventionId.value = interventionId
+      }
     }
     const now = new Date().toISOString()
     
     // Prepare checklist items as JSONB array
-    const checklistItemsData = checklistItems.value.map(item => ({
-      id: item.id || generateUUID(),
-      label: item.label || '',
-      checked: item.checked || false,
-      photo_ids: Array.isArray(item.photo_ids) ? [...item.photo_ids] : []
+    // Deep clone to avoid Vue reactivity issues with IndexedDB
+    const checklistItemsData = JSON.parse(JSON.stringify(
+      checklistItems.value.map(item => ({
+        id: item.id || generateUUID(),
+        label: item.label || '',
+        checked: item.checked || false,
+        photo_ids: Array.isArray(item.photo_ids) ? [...item.photo_ids] : []
+      }))
+    ))
+    
+    // Prepare feed entries as JSONB array (unified structure)
+    // Deep clone to avoid Vue reactivity issues with IndexedDB
+    const feedEntriesData = feedEntries.value.map(entry => ({
+      id: entry.id || generateUUID(),
+      type: entry.type || 'text',
+      text: entry.text || '',
+      photo_id: entry.photo_id || null,
+      transcription: entry.transcription || null,
+      pending_audio_id: entry.pending_audio_id || null,
+      created_at: entry.created_at || new Date().toISOString(),
+      status: entry.status || 'completed'
     }))
     
-    // Prepare comments as JSONB array
-    const commentsData = comments.value.map(comment => ({
+    // Also include old comments format for backward compatibility (during migration)
+    const oldCommentsData = comments.value.map(comment => ({
       id: comment.id || generateUUID(),
       text: comment.text || '',
       created_at: comment.created_at || new Date().toISOString()
     }))
+    
+    // Merge both (new feed entries first, then old comments)
+    // Use JSON.parse(JSON.stringify()) to ensure deep serialization and remove Vue reactivity
+    const commentsData = JSON.parse(JSON.stringify([...feedEntriesData, ...oldCommentsData]))
+    
+    // Get existing intervention to preserve created_at and other fields
+    const existingIntervention = await db.interventions.get(interventionId)
     
     // Save intervention (without tags - tags are in separate table)
     const intervention = {
@@ -788,14 +1344,23 @@ async function saveIntervention() {
       client_name: form.value.client_name,
       date: new Date(form.value.date).toISOString(),
       status: form.value.status,
-      created_at: isEdit.value ? (await db.interventions.get(interventionId))?.created_at || now : now,
+      // Preserve created_at if editing, otherwise use now
+      created_at: existingIntervention?.created_at || now,
       updated_at: now,
-      synced: false,
+      // Preserve synced status if editing and already synced, otherwise mark as unsynced
+      synced: existingIntervention?.synced || false,
       checklist_items: checklistItemsData,
       comments: commentsData
     }
     
-    console.log('[InterventionForm] Intervention object before save:', intervention)
+    // Use put() which will update if exists, create if not
+    // This ensures we're updating the same intervention, not creating a duplicate
+    // Log for debugging
+    if (loadedInterventionId.value || route.params.id) {
+      console.log('[InterventionForm] Updating intervention:', interventionId, 'isEdit:', isEdit.value, 'loadedId:', loadedInterventionId.value, 'routeId:', route.params.id)
+    } else {
+      console.log('[InterventionForm] Creating new intervention:', interventionId)
+    }
     await db.interventions.put(intervention)
     
     // Save tags to junction table
@@ -835,90 +1400,278 @@ async function saveIntervention() {
       await db.photos.put(cleanPhoto)
     }
     
-    // Try to sync to cloud
-    try {
-      // Sync intervention (includes checklist_items and comments as JSONB)
-      await syncInterventionToCloud(intervention)
-      
-      // Upload photos (convert base64 back to File, compress, then upload)
-      for (const photo of photos.value) {
-        if (photo.url_local && !photo.url_cloud) {
-          try {
-            // Convert base64 data URL back to File object
-            const response = await fetch(photo.url_local)
-            const blob = await response.blob()
-            const originalFile = new File([blob], photo.file_name || `photo_${photo.id}.jpg`, { 
-              type: photo.file_type || 'image/jpeg' 
-            })
-            
-            // Compress image before uploading to reduce storage and bandwidth
-            const compressedFile = await compressImage(originalFile, {
-              maxSizeMB: 1, // Max 1MB per image
-              maxWidthOrHeight: 1920, // Max dimension
-              initialQuality: 0.8 // 80% quality
-            })
-            
-            const cloudUrl = await uploadPhotoToCloud(compressedFile, interventionId, photo.id)
-            
-            // Create clean photo object with updated cloud URL
-            const cleanPhoto = {
-              id: photo.id,
-              intervention_id: interventionId,
-              url_local: photo.url_local || '',
-              url_cloud: cloudUrl,
-              description: photo.description || '',
-              taken_at: photo.taken_at || new Date().toISOString(),
-              file_name: photo.file_name || null,
-              file_type: photo.file_type || null,
-              file_size: photo.file_size || null
+    return { intervention, interventionId }
+  } catch (error) {
+    console.error('Error saving intervention locally:', error)
+    throw error
+  }
+}
+
+// Sync to cloud (background, non-blocking)
+async function syncInterventionToCloudBackground(intervention, interventionId) {
+  try {
+    // Mark as syncing to prevent syncFromCloud from pulling it back immediately
+    // Update the local record with a flag or timestamp to prevent race conditions
+    const syncNow = new Date().toISOString()
+    intervention.updated_at = syncNow
+    
+    // Update local record with new updated_at before syncing
+    await db.interventions.put({
+      ...intervention,
+      updated_at: syncNow
+    })
+    
+    // Sync intervention (includes checklist_items and comments as JSONB)
+    await syncInterventionToCloud(intervention)
+    
+    // Upload photos to Supabase Storage (offline-first: photos are already saved locally as base64)
+    // Convert base64 back to File, compress, then upload
+    for (const photo of photos.value) {
+      if (photo.url_local && !photo.url_cloud) {
+        try {
+          // Update feed entry status to "uploading"
+          const feedEntry = feedEntries.value.find(e => e.type === 'photo' && e.photo_id === photo.id)
+          if (feedEntry) {
+            feedEntry.status = 'uploading'
+            // Trigger auto-save after status change (local only)
+            if (initialLoadComplete.value) {
+              saveInterventionLocal().catch(err => console.error('Auto-save error:', err))
             }
-            
-            await db.photos.put(cleanPhoto)
-            await syncPhotoToCloud(cleanPhoto)
-          } catch (error) {
-            // Log error but don't block the save process
-            // The photo will remain with url_cloud = null and can be uploaded later
-            console.warn('Error uploading photo (will retry later):', error.message || error)
+          }
+          
+          // Convert base64 data URL back to File object
+          const response = await fetch(photo.url_local)
+          const blob = await response.blob()
+          const originalFile = new File([blob], photo.file_name || `photo_${photo.id}.jpg`, { 
+            type: photo.file_type || 'image/jpeg' 
+          })
+          
+          // Compress image before uploading to reduce storage and bandwidth
+          const compressedFile = await compressImage(originalFile, {
+            maxSizeMB: 1, // Max 1MB per image
+            maxWidthOrHeight: 1920, // Max dimension
+            initialQuality: 0.8 // 80% quality
+          })
+          
+          // Upload to Supabase Storage
+          const cloudUrl = await uploadPhotoToCloud(compressedFile, interventionId, photo.id)
+          
+          // Update photo with cloud URL (keep local base64)
+          photo.url_cloud = cloudUrl
+          
+          // Update in IndexedDB
+          const cleanPhoto = {
+            id: photo.id,
+            intervention_id: interventionId,
+            url_local: photo.url_local || '', // Keep local base64
+            url_cloud: cloudUrl,
+            description: photo.description || '',
+            taken_at: photo.taken_at || new Date().toISOString(),
+            file_name: photo.file_name || null,
+            file_type: photo.file_type || null,
+            file_size: photo.file_size || null
+          }
+          
+          await db.photos.put(cleanPhoto)
+          
+          // Update the photo in the reactive array
+          const photoIndex = photos.value.findIndex(p => p.id === photo.id)
+          if (photoIndex !== -1) {
+            photos.value[photoIndex].url_cloud = cloudUrl
+          }
+          
+          // Sync photo metadata to Supabase database
+          await syncPhotoToCloud(cleanPhoto)
+          
+          // Update feed entry status to "completed"
+          if (feedEntry) {
+            feedEntry.status = 'completed'
+            // Trigger auto-save after status change (local only)
+            if (initialLoadComplete.value) {
+              saveInterventionLocal().catch(err => console.error('Auto-save error:', err))
+            }
+          }
+        } catch (error) {
+          // Log error but don't block the save process
+          // The photo will remain with url_cloud = null and can be uploaded later during next sync
+          console.warn('Error uploading photo (will retry later):', error.message || error)
+          
+          // Update feed entry status back to "pending"
+          const feedEntry = feedEntries.value.find(e => e.type === 'photo' && e.photo_id === photo.id)
+          if (feedEntry) {
+            feedEntry.status = 'pending'
+            // Trigger auto-save after status change (local only)
+            if (initialLoadComplete.value) {
+              saveInterventionLocal().catch(err => console.error('Auto-save error:', err))
+            }
           }
         }
       }
-      
-      // Sync tags to cloud
-      await syncTagsToCloud(selectedTags.value)
-      await syncInterventionTagsToCloud(interventionId, selectedTags.value)
-      
-      // Mark as synced
-      intervention.synced = true
-      await db.interventions.put(intervention)
-      console.log('[InterventionForm] Intervention marked as synced')
-    } catch (error) {
-      console.error('Error syncing to cloud (will sync later):', error)
     }
     
-    router.push('/')
+    // Sync tags to cloud
+    await syncTagsToCloud(selectedTags.value)
+    await syncInterventionTagsToCloud(interventionId, selectedTags.value)
+    
+    // Mark as synced and update timestamp to prevent syncFromCloud from pulling it back
+    const syncCompleteTime = new Date().toISOString()
+    intervention.synced = true
+    intervention.updated_at = syncCompleteTime
+    await db.interventions.put(intervention)
+    console.log('[InterventionForm] Intervention marked as synced')
   } catch (error) {
-    console.error('Error saving intervention:', error)
-    alert('Error saving intervention. Please try again.')
-  } finally {
-    saving.value = false
+    console.error('Error syncing to cloud (will sync later):', error)
   }
 }
 
-// Global audio transcription handler
-function handleGlobalAudioTranscribed(event) {
-  const { interventionId, transcription } = event.detail
-  const currentId = route.params.id || tempInterventionId.value
-  if (interventionId === currentId) {
-    handleDictationTranscription(transcription)
+// Full save (local + cloud) - used for manual saves
+async function saveIntervention() {
+  saving.value = true
+  
+  try {
+    const { intervention, interventionId } = await saveInterventionLocal()
+    
+    // Sync to cloud in background (non-blocking)
+    syncInterventionToCloudBackground(intervention, interventionId).catch(err => 
+      console.error('Background sync error:', err)
+    )
+    
+    // Show saved indicator
+    lastSaved.value = true
+    setTimeout(() => {
+      lastSaved.value = false
+    }, 2000)
+  } catch (error) {
+    console.error('Error saving intervention:', error)
+  } finally {
+    saving.value = false
+    autoSaving.value = false
   }
 }
+
+// Auto-save function (instant local save, minimal debounce)
+async function autoSave() {
+  // Clear existing timeout
+  if (autoSaveTimeout.value) {
+    clearTimeout(autoSaveTimeout.value)
+  }
+  
+  // Only auto-save if we have a client name (required field)
+  if (!form.value.client_name.trim()) {
+    return
+  }
+  
+  // Set auto-saving indicator
+  autoSaving.value = true
+  
+  // Minimal debounce: wait 100ms after last change before saving (just to batch rapid changes)
+  autoSaveTimeout.value = setTimeout(async () => {
+    try {
+      // Save locally first (instant)
+      const { intervention, interventionId } = await saveInterventionLocal()
+      
+      // Show saved indicator briefly
+      lastSaved.value = true
+      setTimeout(() => {
+        lastSaved.value = false
+      }, 1000)
+      
+      // Sync to cloud in background (non-blocking, doesn't affect UI)
+      syncInterventionToCloudBackground(intervention, interventionId).catch(err => 
+        console.error('Background sync error:', err)
+      )
+    } catch (error) {
+      console.error('Auto-save error:', error)
+    } finally {
+      autoSaving.value = false
+    }
+  }, 100) // 100ms debounce (just to batch rapid changes)
+}
+
+// Watch for changes and trigger auto-save
+watch(
+  () => [
+    form.value.client_name,
+    form.value.date,
+    form.value.status,
+    checklistItems.value,
+    feedEntries.value,
+    photos.value,
+    selectedTags.value
+  ],
+  () => {
+    // Don't auto-save during initial load
+    if (!initialLoadComplete.value) {
+      return
+    }
+    
+    // Don't auto-save if we're editing but haven't loaded the intervention yet
+    // This prevents creating duplicates when route.params.id exists but loadIntervention hasn't completed
+    if (route.params.id && !loadedInterventionId.value) {
+      console.log('[InterventionForm] Skipping auto-save - intervention not loaded yet')
+      return
+    }
+    
+    // Only auto-save if we're editing an existing intervention or have a temp ID
+    if (loadedInterventionId.value || isEdit.value || tempInterventionId.value) {
+      autoSave()
+    } else if (form.value.client_name.trim()) {
+      // For new interventions, create temp ID and start auto-saving
+      if (!tempInterventionId.value) {
+        tempInterventionId.value = generateUUID()
+      }
+      autoSave()
+    }
+  },
+  { deep: true }
+)
+
+// Watch photos to update feed entry status when url_cloud changes
+watch(
+  () => photos.value.map(p => ({ id: p.id, url_cloud: p.url_cloud })),
+  () => {
+    // Update feed entry status based on photo url_cloud
+    // Only update if status is not 'uploading' (to avoid interfering with upload process)
+    for (const entry of feedEntries.value) {
+      if (entry.type === 'photo' && entry.photo_id && entry.status !== 'uploading') {
+        const photo = photos.value.find(p => p.id === entry.photo_id)
+        if (photo) {
+          if (photo.url_cloud && entry.status === 'pending') {
+            entry.status = 'completed'
+          } else if (!photo.url_cloud && entry.status === 'completed') {
+            entry.status = 'pending'
+          }
+        }
+      }
+    }
+  },
+  { deep: true }
+)
 
 onMounted(() => {
   loadIntervention()
-  window.addEventListener('audioTranscribed', handleGlobalAudioTranscribed)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('audioTranscribed', handleGlobalAudioTranscribed)
+  // Clear any pending auto-save
+  if (autoSaveTimeout.value) {
+    clearTimeout(autoSaveTimeout.value)
+  }
+  
+  // Final save before unmounting (if there are changes)
+  if (form.value.client_name.trim() && (isEdit.value || tempInterventionId.value)) {
+    // Save locally synchronously before leaving, then sync to cloud in background
+    saveInterventionLocal()
+      .then(({ intervention, interventionId }) => {
+        // Sync to cloud in background (fire and forget)
+        syncInterventionToCloudBackground(intervention, interventionId).catch(err => 
+          console.error('Final background sync error:', err)
+        )
+      })
+      .catch(err => console.error('Final save error:', err))
+  }
+  
+  window.removeEventListener('audioTranscribed', handleGlobalAudioTranscription)
+  window.removeEventListener('audioTranscribing', handleGlobalAudioTranscribing)
 })
 </script>
