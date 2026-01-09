@@ -111,6 +111,71 @@ export async function uploadPhotoToCloud(photoFile, interventionId, photoId) {
   }
 }
 
+export async function transcribeAudio(audioFile) {
+  try {
+    // Convert file to base64 for transmission
+    const arrayBuffer = await audioFile.arrayBuffer()
+    const base64 = btoa(
+      new Uint8Array(arrayBuffer).reduce(
+        (data, byte) => data + String.fromCharCode(byte),
+        ''
+      )
+    )
+
+    // Call Supabase Edge Function for transcription
+    // Use fetch directly to ensure we always send the anon key for CORS
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+    
+    const response = await fetch(`${supabaseUrl}/functions/v1/transcribe-audio`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'apikey': supabaseAnonKey
+      },
+      body: JSON.stringify({
+        audioData: base64,
+        fileName: audioFile.name,
+        mimeType: audioFile.type
+      })
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      let errorData
+      try {
+        errorData = JSON.parse(errorText)
+      } catch {
+        errorData = { error: errorText }
+      }
+      
+      // Check if it's an auth error
+      if (response.status === 401 || errorData.error?.includes('Unauthorized')) {
+        throw new Error('Authentication required for transcription. Please sign in or the audio will remain pending.')
+      }
+      
+      // Check for rate limiting (429)
+      if (response.status === 429) {
+        throw new Error('Rate limit exceeded. Please wait a moment and try again. Audio will remain pending.')
+      }
+      
+      // Check for quota errors
+      if (errorData.error?.includes('quota') || errorData.error?.includes('billing')) {
+        throw new Error('OpenAI API quota exceeded. Please add credits to your OpenAI account. Audio will remain pending.')
+      }
+      
+      throw new Error(errorData.error || `Transcription failed: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data?.transcription || ''
+  } catch (error) {
+    console.error('Error transcribing audio:', error)
+    throw error
+  }
+}
+
 export async function syncPhotoToCloud(photo) {
   try {
     if (!photo.intervention_id) {

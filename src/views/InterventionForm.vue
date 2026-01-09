@@ -280,25 +280,37 @@
 
           <!-- Comments Tab -->
           <div v-show="activeTab === 'comments'">
-            <div class="flex justify-between items-center mb-4">
+            <div class="mb-4">
               <h2 class="card-title">Comments</h2>
-              <button
-                type="button"
-                @click="addComment"
-                class="btn btn-sm btn-primary btn-circle"
-                :disabled="!commentText.trim()"
-                title="Add Comment"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
             </div>
+            <!-- Audio Dictation Button -->
+            <div class="mb-3 flex items-center gap-2">
+              <AudioDictation
+                :intervention-id="currentInterventionId"
+                @transcription="handleDictationTranscription"
+                ref="audioDictationRef"
+              />
+              <span class="text-xs text-base-content/70">Hold to record voice note</span>
+            </div>
+
             <textarea
               v-model="commentText"
-              placeholder="Enter comments or notes..."
-              class="textarea textarea-bordered h-32 w-full"
+              placeholder="Enter comments or notes... (or use voice dictation above)"
+              class="textarea textarea-bordered h-32 w-full mb-3"
             ></textarea>
+            
+            <!-- Send Button -->
+            <button
+              type="button"
+              @click="addComment"
+              class="btn btn-primary w-full"
+              :disabled="!commentText.trim()"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+              Send
+            </button>
 
             <div v-if="comments.length > 0" class="mt-4 space-y-2">
               <div
@@ -364,7 +376,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { db } from '../db/indexeddb'
 import { generateUUID } from '../utils/uuid'
@@ -372,6 +384,7 @@ import { syncInterventionToCloud, uploadPhotoToCloud, syncPhotoToCloud, syncTags
 import { compressImage } from '../utils/imageCompression'
 import ImageEditor from '../components/ImageEditor.vue'
 import ImageViewer from '../components/ImageViewer.vue'
+import AudioDictation from '../components/AudioDictation.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -379,6 +392,20 @@ const isEdit = ref(false)
 const saving = ref(false)
 const photoInput = ref(null)
 const activeTab = ref('infos')
+const audioDictationRef = ref(null)
+
+// Computed intervention ID for dictation (create temp ID for new interventions)
+const currentInterventionId = computed(() => {
+  if (route.params.id) {
+    return route.params.id
+  }
+  // For new interventions, generate a temporary ID that will be used when saved
+  if (!tempInterventionId.value) {
+    tempInterventionId.value = generateUUID()
+  }
+  return tempInterventionId.value
+})
+const tempInterventionId = ref(null)
 
 const form = ref({
   client_name: '',
@@ -669,6 +696,25 @@ function handleImageSave(dataURL) {
   }
 }
 
+function handleDictationTranscription(transcription) {
+  // Append transcribed text to comment textarea
+  if (commentText.value.trim()) {
+    commentText.value += ' ' + transcription
+  } else {
+    commentText.value = transcription
+  }
+  
+  // Focus the textarea so user can edit
+  nextTick(() => {
+    const textarea = document.querySelector('textarea[v-model="commentText"]')
+    if (textarea) {
+      textarea.focus()
+      // Move cursor to end
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+    }
+  })
+}
+
 function addComment() {
   if (!commentText.value.trim()) return
   
@@ -713,7 +759,12 @@ async function saveIntervention() {
   saving.value = true
   
   try {
-    const interventionId = route.params.id || generateUUID()
+    // Use temp ID if we have one (for new interventions with dictation)
+    const interventionId = route.params.id || tempInterventionId.value || generateUUID()
+    // Update temp ID if we just generated one
+    if (!route.params.id && !tempInterventionId.value) {
+      tempInterventionId.value = interventionId
+    }
     const now = new Date().toISOString()
     
     // Prepare checklist items as JSONB array
@@ -749,6 +800,24 @@ async function saveIntervention() {
     
     // Save tags to junction table
     await saveInterventionTags(interventionId)
+    
+    // Update pending audio records with actual intervention ID (if we had a temp ID)
+    if (tempInterventionId.value && tempInterventionId.value !== interventionId) {
+      try {
+        const pendingAudios = await db.pending_audio
+          .where('intervention_id')
+          .equals(tempInterventionId.value)
+          .toArray()
+        
+        for (const pendingAudio of pendingAudios) {
+          await db.pending_audio.update(pendingAudio.id, {
+            intervention_id: interventionId
+          })
+        }
+      } catch (error) {
+        console.error('Error updating pending audio IDs:', error)
+      }
+    }
     
     // Save photos (still separate table)
     for (const photo of photos.value) {
@@ -835,7 +904,21 @@ async function saveIntervention() {
   }
 }
 
+// Global audio transcription handler
+function handleGlobalAudioTranscribed(event) {
+  const { interventionId, transcription } = event.detail
+  const currentId = route.params.id || tempInterventionId.value
+  if (interventionId === currentId) {
+    handleDictationTranscription(transcription)
+  }
+}
+
 onMounted(() => {
   loadIntervention()
+  window.addEventListener('audioTranscribed', handleGlobalAudioTranscribed)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('audioTranscribed', handleGlobalAudioTranscribed)
 })
 </script>

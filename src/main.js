@@ -3,6 +3,7 @@ import './style.css'
 import App from './App.vue'
 import router from './router'
 import './utils/reloadDiagnostics.js'
+import './utils/processPendingAudio.js' // Initialize pending audio processor
 
 // Theme management - supports auto, light, and dark modes
 function setTheme() {

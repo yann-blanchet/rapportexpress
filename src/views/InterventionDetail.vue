@@ -115,7 +115,10 @@
               :key="comment.id"
               class="p-4 bg-base-200 rounded-lg"
             >
-              <p class="whitespace-pre-wrap">{{ comment.text }}</p>
+              <p v-if="comment.text" class="whitespace-pre-wrap mb-2">{{ comment.text }}</p>
+              <div v-if="comment.audio" class="mb-2">
+                <audio :src="comment.audio.url_cloud || comment.audio.url_local" controls class="w-full max-w-md"></audio>
+              </div>
               <p class="text-xs text-base-content/70 mt-2">
                 {{ formatDate(comment.created_at) }}
               </p>
