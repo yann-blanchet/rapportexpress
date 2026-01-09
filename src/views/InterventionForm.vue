@@ -76,7 +76,7 @@
               />
             </div>
 
-            <div class="form-control">
+            <div class="form-control mb-4">
               <label class="label">
                 <span class="label-text">Status</span>
               </label>
@@ -101,6 +101,61 @@
                 >
                   Completed
                 </button>
+              </div>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Tags</span>
+              </label>
+              <div class="flex flex-wrap gap-2 mb-2">
+                <div
+                  v-for="tag in selectedTags"
+                  :key="tag.id"
+                  class="badge badge-primary badge-lg gap-2"
+                >
+                  {{ tag.name }}
+                  <button
+                    type="button"
+                    @click="removeTag(tag.id)"
+                    class="btn btn-xs btn-circle btn-ghost p-0 h-4 w-4 min-h-0"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+              <div class="relative" @click.stop>
+                <input
+                  type="text"
+                  v-model="tagInput"
+                  @keydown.enter.prevent="addTag"
+                  @keydown="handleTagInputKeydown"
+                  @input="filterAvailableTags"
+                  @focus="showTagSuggestions = true"
+                  @blur="handleTagInputBlur"
+                  placeholder="Type to search or create a new tag"
+                  class="input input-bordered w-full"
+                />
+                <!-- Tag Suggestions Dropdown -->
+                <div
+                  v-if="showTagSuggestions && filteredAvailableTags.length > 0"
+                  class="absolute z-10 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                >
+                  <button
+                    v-for="tag in filteredAvailableTags"
+                    :key="tag.id"
+                    type="button"
+                    @click="selectTag(tag)"
+                    class="w-full text-left px-4 py-2 hover:bg-base-200 transition-colors"
+                  >
+                    {{ tag.name }}
+                  </button>
+                </div>
+              </div>
+              <div class="label">
+                <span class="label-text-alt text-base-content/60">
+                  Type to search existing tags or press Enter to create a new one
+                </span>
               </div>
             </div>
           </div>
@@ -313,7 +368,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { db } from '../db/indexeddb'
 import { generateUUID } from '../utils/uuid'
-import { syncInterventionToCloud, uploadPhotoToCloud, syncPhotoToCloud } from '../services/supabase'
+import { syncInterventionToCloud, uploadPhotoToCloud, syncPhotoToCloud, syncTagsToCloud, syncInterventionTagsToCloud } from '../services/supabase'
 import { compressImage } from '../utils/imageCompression'
 import ImageEditor from '../components/ImageEditor.vue'
 import ImageViewer from '../components/ImageViewer.vue'
@@ -335,6 +390,11 @@ const checklistItems = ref([])
 const photos = ref([])
 const comments = ref([])
 const commentText = ref('')
+const selectedTags = ref([]) // Tags selected for this intervention
+const availableTags = ref([]) // All available tags from database
+const filteredAvailableTags = ref([]) // Filtered tags for suggestions
+const tagInput = ref('')
+const showTagSuggestions = ref(false)
 
 // Image Editor State
 const imageEditor = ref({
@@ -383,11 +443,143 @@ async function loadIntervention() {
               created_at: comment.created_at || new Date().toISOString()
             }))
           : []
+
+        // Load tags from junction table
+        await loadInterventionTags(route.params.id)
       }
     } catch (error) {
       console.error('Error loading intervention:', error)
     }
+  } else {
+    // Initialize tags for new intervention
+    selectedTags.value = []
   }
+  
+  // Load all available tags
+  await loadAvailableTags()
+}
+
+async function loadAvailableTags() {
+  try {
+    availableTags.value = await db.tags.orderBy('name').toArray()
+    filteredAvailableTags.value = availableTags.value
+  } catch (error) {
+    console.error('Error loading available tags:', error)
+    availableTags.value = []
+    filteredAvailableTags.value = []
+  }
+}
+
+async function loadInterventionTags(interventionId) {
+  try {
+    // Get tag IDs linked to this intervention
+    const interventionTagLinks = await db.intervention_tags
+      .where('intervention_id').equals(interventionId)
+      .toArray()
+    
+    const tagIds = interventionTagLinks.map(link => link.tag_id)
+    
+    // Load the actual tag objects
+    const tags = []
+    for (const tagId of tagIds) {
+      const tag = await db.tags.get(tagId)
+      if (tag) {
+        tags.push(tag)
+      }
+    }
+    
+    selectedTags.value = tags
+    console.log('[InterventionForm] Loaded intervention tags:', selectedTags.value)
+  } catch (error) {
+    console.error('Error loading intervention tags:', error)
+    selectedTags.value = []
+  }
+}
+
+function handleTagInputKeydown(event) {
+  // Handle comma key (keyCode 188 or key === ',')
+  if (event.key === ',' || event.keyCode === 188) {
+    event.preventDefault()
+    addTag()
+  }
+  // Close suggestions on Escape
+  if (event.key === 'Escape') {
+    showTagSuggestions.value = false
+  }
+}
+
+function handleTagInputBlur() {
+  // Delay closing suggestions to allow clicking on them
+  window.setTimeout(() => {
+    showTagSuggestions.value = false
+  }, 200)
+}
+
+function filterAvailableTags() {
+  const query = tagInput.value.trim().toLowerCase()
+  if (!query) {
+    filteredAvailableTags.value = availableTags.value.filter(tag => 
+      !selectedTags.value.some(st => st.id === tag.id)
+    )
+  } else {
+    filteredAvailableTags.value = availableTags.value.filter(tag => 
+      tag.name.toLowerCase().includes(query) &&
+      !selectedTags.value.some(st => st.id === tag.id)
+    )
+  }
+}
+
+async function addTag() {
+  const tagName = tagInput.value.trim()
+  if (!tagName) return
+  
+  // Check if tag already exists in available tags
+  let tag = availableTags.value.find(t => t.name.toLowerCase() === tagName.toLowerCase())
+  
+  if (!tag) {
+    // Create new tag
+    const newTag = {
+      id: generateUUID(),
+      name: tagName,
+      color: '#3b82f6', // Default blue
+      created_at: new Date().toISOString(),
+      user_id: null
+    }
+    
+    try {
+      await db.tags.add(newTag)
+      availableTags.value.push(newTag)
+      tag = newTag
+      console.log('[InterventionForm] Created new tag:', tag)
+    } catch (error) {
+      console.error('Error creating tag:', error)
+      return
+    }
+  }
+  
+  // Add to selected tags if not already selected
+  if (!selectedTags.value.some(st => st.id === tag.id)) {
+    selectedTags.value.push(tag)
+    console.log('[InterventionForm] Tag added, selected tags:', selectedTags.value)
+  }
+  
+  tagInput.value = ''
+  showTagSuggestions.value = false
+  filterAvailableTags()
+}
+
+function selectTag(tag) {
+  if (!selectedTags.value.some(st => st.id === tag.id)) {
+    selectedTags.value.push(tag)
+  }
+  tagInput.value = ''
+  showTagSuggestions.value = false
+  filterAvailableTags()
+}
+
+function removeTag(tagId) {
+  selectedTags.value = selectedTags.value.filter(t => t.id !== tagId)
+  filterAvailableTags()
 }
 
 function addChecklistItem() {
@@ -491,6 +683,27 @@ function addComment() {
   commentText.value = ''
 }
 
+async function saveInterventionTags(interventionId) {
+  try {
+    // Remove all existing tag links for this intervention
+    await db.intervention_tags
+      .where('intervention_id').equals(interventionId)
+      .delete()
+    
+    // Add new tag links
+    for (const tag of selectedTags.value) {
+      await db.intervention_tags.add({
+        intervention_id: interventionId,
+        tag_id: tag.id
+      })
+    }
+    
+    console.log('[InterventionForm] Saved intervention tags:', selectedTags.value.map(t => t.name))
+  } catch (error) {
+    console.error('Error saving intervention tags:', error)
+  }
+}
+
 function formatDate(dateString) {
   if (!dateString) return ''
   return new Date(dateString).toLocaleString()
@@ -518,7 +731,7 @@ async function saveIntervention() {
       created_at: comment.created_at || new Date().toISOString()
     }))
     
-    // Save intervention with JSONB columns
+    // Save intervention (without tags - tags are in separate table)
     const intervention = {
       id: interventionId,
       client_name: form.value.client_name,
@@ -531,7 +744,11 @@ async function saveIntervention() {
       comments: commentsData
     }
     
+    console.log('[InterventionForm] Intervention object before save:', intervention)
     await db.interventions.put(intervention)
+    
+    // Save tags to junction table
+    await saveInterventionTags(interventionId)
     
     // Save photos (still separate table)
     for (const photo of photos.value) {
@@ -597,9 +814,14 @@ async function saveIntervention() {
         }
       }
       
+      // Sync tags to cloud
+      await syncTagsToCloud(selectedTags.value)
+      await syncInterventionTagsToCloud(interventionId, selectedTags.value)
+      
       // Mark as synced
       intervention.synced = true
       await db.interventions.put(intervention)
+      console.log('[InterventionForm] Intervention marked as synced')
     } catch (error) {
       console.error('Error syncing to cloud (will sync later):', error)
     }

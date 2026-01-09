@@ -15,4 +15,12 @@ db.version(2).stores({
   photos: 'id, intervention_id, url_local, url_cloud, description, taken_at'
 })
 
+// Version 3: Added tags and intervention_tags tables for shared tags
+db.version(3).stores({
+  interventions: 'id, client_name, date, status, created_at, updated_at, synced, user_id',
+  photos: 'id, intervention_id, url_local, url_cloud, description, taken_at',
+  tags: 'id, name, color, created_at, user_id',
+  intervention_tags: '[intervention_id+tag_id], intervention_id, tag_id'
+})
+
 export default db

@@ -145,7 +145,16 @@
         <div class="flex justify-between items-start gap-3">
           <div class="flex-1 min-w-0">
             <h3 class="font-semibold text-base mb-1">{{ intervention.client_name || 'Unnamed Client' }}</h3>
-            <p class="text-sm text-base-content/70">{{ formatDateShort(intervention.date) }}</p>
+            <p class="text-sm text-base-content/70 mb-2">{{ formatDateShort(intervention.date) }}</p>
+            <div v-if="intervention.tags && intervention.tags.length > 0" class="flex flex-wrap gap-1">
+              <span
+                v-for="tag in intervention.tags"
+                :key="tag"
+                class="badge badge-sm badge-outline"
+              >
+                {{ tag }}
+              </span>
+            </div>
           </div>
           <div class="flex items-center gap-2 flex-shrink-0">
             <span
@@ -473,7 +482,30 @@ async function loadInterventions() {
     
     // Load all interventions
     const all = await db.interventions.toArray()
-    interventions.value = all || []
+    
+    // Load tags for all interventions
+    const interventionsWithTags = await Promise.all(
+      all.map(async (intervention) => {
+        const tagLinks = await db.intervention_tags
+          .where('intervention_id').equals(intervention.id)
+          .toArray()
+        
+        const tagIds = tagLinks.map(link => link.tag_id)
+        const tags = []
+        for (const tagId of tagIds) {
+          const tag = await db.tags.get(tagId)
+          if (tag) tags.push(tag)
+        }
+        
+        return {
+          ...intervention,
+          tags: tags.map(t => t.name) // For display, just use tag names
+        }
+      })
+    )
+    
+    interventions.value = interventionsWithTags || []
+    console.log('[Dashboard] Loaded interventions with tags:', interventions.value.map(i => ({ id: i.id, client_name: i.client_name, tags: i.tags })))
     
     if (all.length === 0 && count > 0) {
       console.warn('[Dashboard] Count shows interventions exist but toArray returned empty. Possible schema issue.')
@@ -582,6 +614,19 @@ async function duplicateIntervention(intervention) {
     }
     
     await db.interventions.put(duplicate)
+    
+    // Copy tags from junction table
+    const tagLinks = await db.intervention_tags
+      .where('intervention_id').equals(intervention.id)
+      .toArray()
+    
+    for (const link of tagLinks) {
+      await db.intervention_tags.add({
+        intervention_id: newId,
+        tag_id: link.tag_id
+      })
+    }
+    
     await loadInterventions()
     router.push(`/interventions/${newId}/edit`)
   } catch (error) {

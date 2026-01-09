@@ -23,6 +23,15 @@
           <div class="flex-1">
             <h1 class="text-3xl font-bold">{{ intervention.client_name || 'Unnamed Client' }}</h1>
             <p class="text-base-content/70 mt-1">{{ formatDate(intervention.date) }}</p>
+            <div v-if="intervention.tags && intervention.tags.length > 0" class="flex flex-wrap gap-2 mt-2">
+              <span
+                v-for="tag in intervention.tags"
+                :key="tag"
+                class="badge badge-sm badge-primary"
+              >
+                {{ tag }}
+              </span>
+            </div>
           </div>
         </div>
         <div class="flex gap-2">
@@ -234,6 +243,21 @@ async function loadIntervention() {
     comments.value = Array.isArray(intervention.value.comments)
       ? intervention.value.comments
       : []
+    
+    // Load tags from junction table
+    const tagLinks = await db.intervention_tags
+      .where('intervention_id').equals(id)
+      .toArray()
+    
+    const tagIds = tagLinks.map(link => link.tag_id)
+    const tags = []
+    for (const tagId of tagIds) {
+      const tag = await db.tags.get(tagId)
+      if (tag) tags.push(tag)
+    }
+    
+    // Add tags to intervention for display
+    intervention.value.tags = tags.map(t => t.name)
   } catch (error) {
     console.error('[InterventionDetail] Error loading intervention:', error)
   } finally {

@@ -109,13 +109,32 @@ CREATE POLICY "Users can delete photos for their interventions or unassigned"
   );
 
 -- Add constraints to ensure JSONB columns are always arrays
-ALTER TABLE interventions 
-ADD CONSTRAINT IF NOT EXISTS checklist_items_is_array 
-CHECK (jsonb_typeof(checklist_items) = 'array');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'checklist_items_is_array' 
+    AND conrelid = 'interventions'::regclass
+  ) THEN
+    ALTER TABLE interventions 
+    ADD CONSTRAINT checklist_items_is_array 
+    CHECK (jsonb_typeof(checklist_items) = 'array');
+  END IF;
+END $$;
 
-ALTER TABLE interventions 
-ADD CONSTRAINT IF NOT EXISTS comments_is_array 
-CHECK (jsonb_typeof(comments) = 'array');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'comments_is_array' 
+    AND conrelid = 'interventions'::regclass
+  ) THEN
+    ALTER TABLE interventions 
+    ADD CONSTRAINT comments_is_array 
+    CHECK (jsonb_typeof(comments) = 'array');
+  END IF;
+END $$;
+
 
 -- Create storage bucket for photos
 INSERT INTO storage.buckets (id, name, public)
