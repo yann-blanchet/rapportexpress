@@ -506,6 +506,8 @@ const feedContainer = ref(null) // Ref for feed container (for auto-scroll)
 const autoSaving = ref(false)
 const lastSaved = ref(false)
 const autoSaveTimeout = ref(null)
+const isSavingLocal = ref(false) // Flag to prevent concurrent local saves
+const isSyncing = ref(false) // Flag to prevent concurrent cloud syncs
 const feedAudioDictationRef = ref(null)
 const entryMenu = ref({ show: false, entry: null, x: 0, y: 0 })
 const longPressTimer = ref(null)
@@ -1461,6 +1463,14 @@ async function saveInterventionLocal() {
 
 // Sync to cloud (background, non-blocking)
 async function syncInterventionToCloudBackground(intervention, interventionId) {
+  // Prevent multiple simultaneous syncs
+  if (isSyncing.value) {
+    console.log('[InterventionForm] Sync already in progress, skipping')
+    return
+  }
+  
+  isSyncing.value = true
+  
   try {
     // Mark as syncing to prevent syncFromCloud from pulling it back immediately
     // Update the local record with a flag or timestamp to prevent race conditions
@@ -1485,10 +1495,7 @@ async function syncInterventionToCloudBackground(intervention, interventionId) {
           const feedEntry = feedEntries.value.find(e => e.type === 'photo' && e.photo_id === photo.id)
           if (feedEntry) {
             feedEntry.status = 'uploading'
-            // Trigger auto-save after status change (local only)
-            if (initialLoadComplete.value) {
-              saveInterventionLocal().catch(err => console.error('Auto-save error:', err))
-            }
+            // Don't trigger save here - the watch will handle it, and we don't want to save during upload
           }
           
           // Convert base64 data URL back to File object
@@ -1538,10 +1545,7 @@ async function syncInterventionToCloudBackground(intervention, interventionId) {
           // Update feed entry status to "completed"
           if (feedEntry) {
             feedEntry.status = 'completed'
-            // Trigger auto-save after status change (local only)
-            if (initialLoadComplete.value) {
-              saveInterventionLocal().catch(err => console.error('Auto-save error:', err))
-            }
+            // Don't trigger save here - the watch will handle it after upload completes
           }
         } catch (error) {
           // Log error but don't block the save process
@@ -1552,10 +1556,7 @@ async function syncInterventionToCloudBackground(intervention, interventionId) {
           const feedEntry = feedEntries.value.find(e => e.type === 'photo' && e.photo_id === photo.id)
           if (feedEntry) {
             feedEntry.status = 'pending'
-            // Trigger auto-save after status change (local only)
-            if (initialLoadComplete.value) {
-              saveInterventionLocal().catch(err => console.error('Auto-save error:', err))
-            }
+            // Don't trigger save here - the watch will handle it
           }
         }
       }
@@ -1573,6 +1574,8 @@ async function syncInterventionToCloudBackground(intervention, interventionId) {
     console.log('[InterventionForm] Intervention marked as synced')
   } catch (error) {
     console.error('Error syncing to cloud (will sync later):', error)
+  } finally {
+    isSyncing.value = false
   }
 }
 
@@ -1613,11 +1616,24 @@ async function autoSave() {
     return
   }
   
+  // Skip if already saving (prevent concurrent saves)
+  if (isSavingLocal.value) {
+    return
+  }
+  
   // Set auto-saving indicator
   autoSaving.value = true
   
-  // Minimal debounce: wait 100ms after last change before saving (just to batch rapid changes)
+  // Debounce: wait 1000ms after last change before saving (batch rapid changes)
+  // Increased to prevent multiple saves during photo uploads
   autoSaveTimeout.value = setTimeout(async () => {
+    // Double-check we're not already saving
+    if (isSavingLocal.value) {
+      autoSaving.value = false
+      return
+    }
+    
+    isSavingLocal.value = true
     try {
       // Save locally first (instant)
       const { intervention, interventionId } = await saveInterventionLocal()
@@ -1629,6 +1645,7 @@ async function autoSave() {
       }, 1000)
       
       // Sync to cloud in background (non-blocking, doesn't affect UI)
+      // syncInterventionToCloudBackground handles its own isSyncing flag
       syncInterventionToCloudBackground(intervention, interventionId).catch(err => 
         console.error('Background sync error:', err)
       )
@@ -1636,8 +1653,9 @@ async function autoSave() {
       console.error('Auto-save error:', error)
     } finally {
       autoSaving.value = false
+      isSavingLocal.value = false
     }
-  }, 100) // 100ms debounce (just to batch rapid changes)
+  }, 500) // 500ms debounce to batch rapid changes
 }
 
 // Watch for changes and trigger auto-save
@@ -1679,11 +1697,17 @@ watch(
 )
 
 // Watch photos to update feed entry status when url_cloud changes
+// Use a flag to prevent triggering during photo upload status changes
+let isUpdatingPhotoStatus = false
 watch(
   () => photos.value.map(p => ({ id: p.id, url_cloud: p.url_cloud })),
   () => {
+    // Skip if we're in the middle of updating photo status (to avoid loops)
+    if (isUpdatingPhotoStatus) return
+    
     // Update feed entry status based on photo url_cloud
     // Only update if status is not 'uploading' (to avoid interfering with upload process)
+    isUpdatingPhotoStatus = true
     for (const entry of feedEntries.value) {
       if (entry.type === 'photo' && entry.photo_id && entry.status !== 'uploading') {
         const photo = photos.value.find(p => p.id === entry.photo_id)
@@ -1696,6 +1720,10 @@ watch(
         }
       }
     }
+    // Reset flag after a short delay
+    setTimeout(() => {
+      isUpdatingPhotoStatus = false
+    }, 100)
   },
   { deep: true }
 )
