@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf'
+import { getDisplayTitle } from '../utils/sequenceNumber'
 
 export async function generatePDF(intervention, checklistItems, photos, comments) {
   const doc = new jsPDF()
@@ -14,7 +15,8 @@ export async function generatePDF(intervention, checklistItems, photos, comments
   doc.setFont(undefined, 'bold')
   doc.text('Client/Site:', 14, yPos)
   doc.setFont(undefined, 'normal')
-  doc.text(intervention.client_name || 'N/A', 50, yPos)
+  // Use display title which includes sequence number if present
+  doc.text(getDisplayTitle(intervention) || 'N/A', 50, yPos)
   yPos += 8
   
   doc.setFont(undefined, 'bold')

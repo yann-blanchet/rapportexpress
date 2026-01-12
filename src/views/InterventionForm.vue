@@ -8,7 +8,7 @@
           </svg>
         </router-link>
         <h1 class="text-3xl font-bold">
-          {{ isEdit ? 'Edit Intervention' : 'Create New Intervention' }}
+          {{ isEdit && form.sequence_number ? getDisplayTitle({ client_name: form.client_name, sequence_number: form.sequence_number }) : (isEdit ? 'Edit Intervention' : 'Create New Intervention') }}
         </h1>
       </div>
       <SyncIndicator />
@@ -51,13 +51,54 @@
               <label class="label">
                 <span class="label-text">Client / Site Name *</span>
               </label>
-              <input
-                type="text"
-                v-model="form.client_name"
-                required
-                placeholder="Enter client or site name"
-                class="input input-bordered"
-              />
+              <div class="relative" @click.stop>
+                <input
+                  type="text"
+                  v-model="form.client_name"
+                  @input="filterBaseTitleSuggestions"
+                  @focus="showBaseTitleSuggestions = true"
+                  @blur="handleBaseTitleInputBlur"
+                  required
+                  placeholder="Enter client or site name"
+                  class="input input-bordered w-full"
+                  list="base-title-suggestions"
+                />
+                <!-- Base Title Suggestions Dropdown -->
+                <div
+                  v-if="showBaseTitleSuggestions && filteredBaseTitleSuggestions.length > 0"
+                  class="absolute z-10 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                >
+                  <button
+                    v-for="title in filteredBaseTitleSuggestions"
+                    :key="title"
+                    type="button"
+                    @click="selectBaseTitle(title)"
+                    class="w-full text-left px-4 py-2 hover:bg-base-200 transition-colors"
+                  >
+                    {{ title }}
+                  </button>
+                </div>
+              </div>
+              <div class="label">
+                <span class="label-text-alt text-base-content/60">
+                  Type to see suggestions from recent reports
+                </span>
+              </div>
+            </div>
+            
+            <!-- Sequence Number Display (read-only, auto-generated) -->
+            <div v-if="form.sequence_number" class="form-control mb-4">
+              <label class="label">
+                <span class="label-text">Report Number</span>
+              </label>
+              <div class="badge badge-lg badge-outline p-3">
+                {{ formatSequenceNumber(form.sequence_number) }}
+              </div>
+              <div class="label">
+                <span class="label-text-alt text-base-content/60">
+                  Auto-generated sequence number
+                </span>
+              </div>
             </div>
 
             <div class="form-control mb-4">
@@ -457,6 +498,7 @@ import ImageEditor from '../components/ImageEditor.vue'
 import ImageViewer from '../components/ImageViewer.vue'
 import AudioDictation from '../components/AudioDictation.vue'
 import SyncIndicator from '../components/SyncIndicator.vue'
+import { getNextSequenceNumber, getBaseTitleSuggestions, formatSequenceNumber, getDisplayTitle } from '../utils/sequenceNumber'
 
 const route = useRoute()
 const router = useRouter()
@@ -483,7 +525,8 @@ const loadedInterventionId = ref(null) // Store the ID of the intervention we're
 const form = ref({
   client_name: '',
   date: new Date().toISOString().slice(0, 16),
-  status: 'In Progress'
+  status: 'In Progress',
+  sequence_number: null // Auto-generated when saving
 })
 
 const checklistItems = ref([])
@@ -495,6 +538,11 @@ const availableTags = ref([]) // All available tags from database
 const filteredAvailableTags = ref([]) // Filtered tags for suggestions
 const tagInput = ref('')
 const showTagSuggestions = ref(false)
+
+// Base title autocomplete state
+const baseTitleSuggestions = ref([])
+const filteredBaseTitleSuggestions = ref([])
+const showBaseTitleSuggestions = ref(false)
 
 // Feed state (unified feed)
 const feedEntries = ref([]) // Unified feed entries (text, photo, audio)
@@ -647,6 +695,9 @@ async function loadIntervention() {
   // Load all available tags
   await loadAvailableTags()
   
+  // Load base title suggestions
+  await loadBaseTitleSuggestions()
+  
   // Listen for audio transcription events from global processor
   window.addEventListener('audioTranscribed', handleGlobalAudioTranscription)
   window.addEventListener('audioTranscribing', handleGlobalAudioTranscribing)
@@ -743,6 +794,41 @@ async function loadAvailableTags() {
     availableTags.value = []
     filteredAvailableTags.value = []
   }
+}
+
+async function loadBaseTitleSuggestions() {
+  try {
+    baseTitleSuggestions.value = await getBaseTitleSuggestions(db, 10)
+    filteredBaseTitleSuggestions.value = baseTitleSuggestions.value
+  } catch (error) {
+    console.error('Error loading base title suggestions:', error)
+    baseTitleSuggestions.value = []
+    filteredBaseTitleSuggestions.value = []
+  }
+}
+
+function filterBaseTitleSuggestions() {
+  const query = form.value.client_name.trim().toLowerCase()
+  if (!query) {
+    filteredBaseTitleSuggestions.value = baseTitleSuggestions.value
+  } else {
+    filteredBaseTitleSuggestions.value = baseTitleSuggestions.value.filter(title =>
+      title.toLowerCase().includes(query)
+    )
+  }
+}
+
+function handleBaseTitleInputBlur() {
+  // Delay closing suggestions to allow clicking on them
+  window.setTimeout(() => {
+    showBaseTitleSuggestions.value = false
+  }, 200)
+}
+
+function selectBaseTitle(title) {
+  form.value.client_name = title
+  showBaseTitleSuggestions.value = false
+  filterBaseTitleSuggestions()
 }
 
 async function loadInterventionTags(interventionId) {
@@ -1392,10 +1478,33 @@ async function saveInterventionLocal() {
     // Get existing intervention to preserve created_at and other fields
     const existingIntervention = await db.interventions.get(interventionId)
     
+    // Compute sequence number for new interventions
+    let sequenceNumber = form.value.sequence_number
+    if (!existingIntervention) {
+      // New intervention - compute next sequence number
+      if (!sequenceNumber && form.value.client_name.trim()) {
+        sequenceNumber = await getNextSequenceNumber(db, form.value.client_name.trim())
+      } else if (!sequenceNumber) {
+        sequenceNumber = 1 // Default to 1 if no base title
+      }
+    } else {
+      // Editing existing - preserve sequence number or compute if missing
+      sequenceNumber = existingIntervention.sequence_number || sequenceNumber
+      if (!sequenceNumber && form.value.client_name.trim()) {
+        // If base title changed, recompute sequence
+        if (existingIntervention.client_name !== form.value.client_name.trim()) {
+          sequenceNumber = await getNextSequenceNumber(db, form.value.client_name.trim())
+        } else {
+          sequenceNumber = 1 // Default if missing
+        }
+      }
+    }
+    
     // Save intervention (without tags - tags are in separate table)
     const intervention = {
       id: interventionId,
       client_name: form.value.client_name,
+      sequence_number: sequenceNumber, // Auto-computed sequence number
       date: new Date(form.value.date).toISOString(),
       status: form.value.status,
       // Preserve created_at if editing, otherwise use now
@@ -1664,6 +1773,7 @@ watch(
     form.value.client_name,
     form.value.date,
     form.value.status,
+    form.value.sequence_number,
     checklistItems.value,
     feedEntries.value,
     photos.value,

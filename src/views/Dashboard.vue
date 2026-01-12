@@ -147,7 +147,7 @@
       >
         <div class="flex justify-between items-start gap-3">
           <div class="flex-1 min-w-0">
-            <h3 class="font-semibold text-base mb-1">{{ intervention.client_name || 'Unnamed Client' }}</h3>
+            <h3 class="font-semibold text-base mb-1">{{ getDisplayTitle(intervention) }}</h3>
             <p class="text-sm text-base-content/70 mb-2">{{ formatDateShort(intervention.date) }}</p>
             <div v-if="intervention.tags && intervention.tags.length > 0" class="flex flex-wrap gap-1">
               <span
@@ -190,6 +190,15 @@
       @click.stop
     >
       <div class="p-2">
+        <button
+          @click="createSimilarFromContextMenu"
+          class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-base-200 transition-colors text-left"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-base-content/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          <span>Create Similar</span>
+        </button>
         <button
           @click="duplicateIntervention(contextMenu.intervention)"
           class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-base-200 transition-colors text-left"
@@ -238,6 +247,16 @@
           
           <!-- Actions -->
           <div class="space-y-2">
+            <button
+              @click="handleCreateSimilar"
+              class="w-full flex items-center gap-4 px-4 py-4 rounded-lg hover:bg-base-200 transition-colors text-left"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-base-content/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              <span class="font-medium">Create Similar</span>
+            </button>
+            
             <button
               @click="handleDuplicate"
               class="w-full flex items-center gap-4 px-4 py-4 rounded-lg hover:bg-base-200 transition-colors text-left"
@@ -329,6 +348,7 @@ import SyncIndicator from '../components/SyncIndicator.vue'
 import { generateUUID } from '../utils/uuid'
 import { generatePDF } from '../services/pdf'
 import { deleteInterventionFromCloud } from '../services/supabase'
+import { getNextSequenceNumber, getDisplayTitle } from '../utils/sequenceNumber'
 
 // Component name for keep-alive
 defineOptions({
@@ -589,6 +609,52 @@ function openActionSheet(intervention) {
   actionSheet.value.show = true
 }
 
+function handleCreateSimilar() {
+  if (!actionSheet.value.intervention) return
+  actionSheet.value.show = false
+  createSimilarIntervention(actionSheet.value.intervention)
+}
+
+async function createSimilarIntervention(intervention) {
+  if (!intervention) return
+  
+  try {
+    const baseTitle = intervention.client_name || 'Unnamed Client'
+    const nextSequence = await getNextSequenceNumber(db, baseTitle)
+    const newId = generateUUID()
+    const now = new Date().toISOString()
+    
+    // Create new intervention with same base title and next sequence
+    const newIntervention = {
+      id: newId,
+      client_name: baseTitle, // Same base title
+      sequence_number: nextSequence, // Next sequence number
+      date: now,
+      status: 'In Progress',
+      created_at: now,
+      updated_at: now,
+      synced: false,
+      checklist_items: [], // Empty - fresh report
+      comments: [] // Empty - fresh report
+    }
+    
+    await db.interventions.put(newIntervention)
+    
+    // Navigate to edit page
+    await loadInterventions()
+    router.push(`/interventions/${newId}/edit`)
+  } catch (error) {
+    console.error('Error creating similar intervention:', error)
+    alert('Error creating similar report. Please try again.')
+  }
+}
+
+function createSimilarFromContextMenu() {
+  if (!contextMenu.value.intervention) return
+  contextMenu.value.show = false
+  createSimilarIntervention(contextMenu.value.intervention)
+}
+
 function handleDuplicate() {
   if (!actionSheet.value.intervention) return
   actionSheet.value.show = false
@@ -603,9 +669,14 @@ async function duplicateIntervention(intervention) {
     const now = new Date().toISOString()
     
     // Create duplicate WITH checklist items but WITHOUT photos and comments
+    // Use same base title with next sequence number
+    const baseTitle = intervention.client_name || 'Unnamed Client'
+    const nextSequence = await getNextSequenceNumber(db, baseTitle)
+    
     const duplicate = {
       id: newId,
-      client_name: `${intervention.client_name} (Copy)`,
+      client_name: baseTitle, // Same base title
+      sequence_number: nextSequence, // Next sequence number
       date: now,
       status: 'In Progress',
       created_at: now,

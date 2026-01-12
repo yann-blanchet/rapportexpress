@@ -21,6 +21,7 @@ export async function syncInterventionToCloud(intervention) {
         created_at: intervention.created_at,
         updated_at: intervention.updated_at,
         user_id: userId,
+        sequence_number: intervention.sequence_number || null,
         checklist_items: Array.isArray(intervention.checklist_items) 
           ? intervention.checklist_items 
           : [],

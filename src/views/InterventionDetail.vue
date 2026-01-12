@@ -21,7 +21,7 @@
             </svg>
           </router-link>
           <div class="flex-1">
-            <h1 class="text-3xl font-bold">{{ intervention.client_name || 'Unnamed Client' }}</h1>
+            <h1 class="text-3xl font-bold">{{ getDisplayTitle(intervention) }}</h1>
             <p class="text-base-content/70 mt-1">{{ formatDate(intervention.date) }}</p>
             <div v-if="intervention.tags && intervention.tags.length > 0" class="flex flex-wrap gap-2 mt-2">
               <span
@@ -142,8 +142,17 @@
       <div class="relative max-w-md mx-auto px-4 py-3">
         <div class="flex gap-3">
           <button
-            @click="downloadPDF"
+            @click="createSimilarIntervention"
             class="btn btn-primary flex-1"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Create Similar
+          </button>
+          <button
+            @click="downloadPDF"
+            class="btn btn-secondary flex-1"
             :disabled="generatingPDF"
           >
             <span v-if="generatingPDF" class="loading loading-spinner loading-sm"></span>
@@ -155,23 +164,12 @@
           <button
             v-if="intervention && intervention.status !== 'Completed'"
             @click="editIntervention"
-            class="btn btn-secondary flex-1"
+            class="btn btn-ghost flex-1"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
             Edit
-          </button>
-          <button
-            @click="deleteIntervention"
-            class="btn btn-error flex-1"
-            :disabled="deleting"
-          >
-            <span v-if="deleting" class="loading loading-spinner loading-sm"></span>
-            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            {{ deleting ? 'Deleting...' : 'Delete' }}
           </button>
         </div>
       </div>
@@ -194,6 +192,8 @@ import SyncIndicator from '../components/SyncIndicator.vue'
 import { generatePDF } from '../services/pdf'
 import { deleteInterventionFromCloud } from '../services/supabase'
 import ImageViewer from '../components/ImageViewer.vue'
+import { generateUUID } from '../utils/uuid'
+import { getNextSequenceNumber, getDisplayTitle } from '../utils/sequenceNumber'
 
 const route = useRoute()
 const router = useRouter()
@@ -324,6 +324,39 @@ async function downloadPDF() {
     alert('Error generating PDF. Please try again.')
   } finally {
     generatingPDF.value = false
+  }
+}
+
+async function createSimilarIntervention() {
+  if (!intervention.value) return
+  
+  try {
+    const baseTitle = intervention.value.client_name || 'Unnamed Client'
+    const nextSequence = await getNextSequenceNumber(db, baseTitle)
+    const newId = generateUUID()
+    const now = new Date().toISOString()
+    
+    // Create new intervention with same base title and next sequence
+    const newIntervention = {
+      id: newId,
+      client_name: baseTitle, // Same base title
+      sequence_number: nextSequence, // Next sequence number
+      date: now,
+      status: 'In Progress',
+      created_at: now,
+      updated_at: now,
+      synced: false,
+      checklist_items: [], // Empty - fresh report
+      comments: [] // Empty - fresh report
+    }
+    
+    await db.interventions.put(newIntervention)
+    
+    // Navigate to edit page
+    router.push(`/interventions/${newId}/edit`)
+  } catch (error) {
+    console.error('Error creating similar intervention:', error)
+    alert('Error creating similar report. Please try again.')
   }
 }
 
