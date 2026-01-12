@@ -90,10 +90,14 @@ const props = defineProps({
   interventionId: {
     type: String,
     required: true
+  },
+  transcribeImmediately: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['transcription', 'recording-started'])
+const emit = defineEmits(['transcription', 'recording-started', 'recording-stopped'])
 
 // State
 const isSupported = ref(false)
@@ -207,26 +211,76 @@ async function startRecording() {
       // Create blob from chunks
       const audioBlob = new Blob(audioChunks, { type: supportedMimeType })
       
-      // Save to IndexedDB (offline-first - transcription happens in background)
-      await savePendingAudio(audioBlob)
+      // Emit recording-stopped event with the blob
+      emit('recording-stopped', audioBlob)
+      
+      // If transcribeImmediately is true and online, transcribe now
+      if (props.transcribeImmediately && navigator.onLine) {
+        try {
+          isProcessing.value = true
+          statusMessage.value = 'Transcribing...'
+          statusType.value = 'info'
+          
+          // Convert blob to File for transcription
+          const audioFile = new File(
+            [audioBlob],
+            `audio_${generateUUID()}.${getFileExtension(supportedMimeType)}`,
+            { type: supportedMimeType }
+          )
+          
+          // Import and use transcribeAudio
+          const { transcribeAudio } = await import('../services/supabase')
+          const transcription = await transcribeAudio(audioFile)
+          
+          if (transcription && transcription.trim()) {
+            // Emit transcription result
+            emit('transcription', transcription.trim())
+            statusMessage.value = 'Transcription complete'
+            statusType.value = 'success'
+            setTimeout(() => {
+              statusMessage.value = ''
+            }, 2000)
+          } else {
+            throw new Error('Empty transcription')
+          }
+        } catch (error) {
+          console.error('Error transcribing audio:', error)
+          statusMessage.value = 'Transcription failed - will retry in background'
+          statusType.value = 'error'
+          // Fall back to background processing
+          await savePendingAudio(audioBlob)
+          import('../utils/processPendingAudio.js').then(({ processAllPendingAudio }) => {
+            processAllPendingAudio()
+          })
+          setTimeout(() => {
+            statusMessage.value = ''
+          }, 3000)
+        } finally {
+          isProcessing.value = false
+        }
+      } else {
+        // Save to IndexedDB (offline-first - transcription happens in background)
+        await savePendingAudio(audioBlob)
+        
+        // Audio is saved locally - transcription will happen in background
+        // via processAllPendingAudio() which runs globally
+        if (navigator.onLine) {
+          statusMessage.value = 'Saved - transcribing in background...'
+          statusType.value = 'pending'
+          // Trigger background processing if online
+          import('../utils/processPendingAudio.js').then(({ processAllPendingAudio }) => {
+            processAllPendingAudio()
+          })
+        } else {
+          statusMessage.value = 'Saved - will transcribe when online'
+          statusType.value = 'pending'
+        }
+        setTimeout(() => {
+          statusMessage.value = ''
+        }, 3000)
+      }
       
       cleanup()
-
-      // Audio is saved locally - transcription will happen in background
-      // via processAllPendingAudio() which runs globally
-      statusMessage.value = 'Saved - transcribing in background...'
-      statusType.value = 'pending'
-      setTimeout(() => {
-        statusMessage.value = ''
-      }, 3000)
-      
-      // Trigger background processing if online
-      if (navigator.onLine) {
-        // Import and trigger global processor
-        import('../utils/processPendingAudio.js').then(({ processAllPendingAudio }) => {
-          processAllPendingAudio()
-        })
-      }
     }
 
     // Start recording
@@ -305,13 +359,17 @@ function handleOffline() {
   }, 3000)
 }
 
-// Note: Audio transcription is now handled by the global background processor
-// (processAllPendingAudio in utils/processPendingAudio.js)
-// This ensures offline-first behavior - audio is saved locally and transcribed in background
+function getFileExtension(mimeType) {
+  if (mimeType.includes('webm')) return 'webm'
+  if (mimeType.includes('mp4')) return 'mp4'
+  if (mimeType.includes('ogg')) return 'ogg'
+  if (mimeType.includes('wav')) return 'wav'
+  return 'webm'
+}
 
-// Note: getFileExtension is no longer needed here since transcription is handled globally
-// Audio transcription is now handled by the global background processor
-// (processAllPendingAudio in utils/processPendingAudio.js)
+// Note: Audio transcription can be handled immediately (if transcribeImmediately prop is true)
+// or in the background via processAllPendingAudio in utils/processPendingAudio.js
+// This ensures offline-first behavior - audio is saved locally and transcribed when possible
 </script>
 
 <style scoped>

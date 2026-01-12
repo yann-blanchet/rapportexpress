@@ -1,214 +1,85 @@
 <template>
-  <div class="pb-20">
-    <div class="flex items-center justify-between gap-3 mb-6">
-      <div class="flex items-center gap-3">
-        <router-link to="/" class="btn btn-ghost btn-circle btn-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-        </router-link>
-        <h1 class="text-3xl font-bold">
-          {{ isEdit && form.sequence_number ? getDisplayTitle({ client_name: form.client_name, sequence_number: form.sequence_number }) : (isEdit ? 'Edit Intervention' : 'Create New Intervention') }}
-        </h1>
-      </div>
-      <SyncIndicator />
-    </div>
+  <div class="pt-16 pb-20">
+    <!-- Header with Icon - Fixed at Top (matching Dashboard design) -->
+    <div class="fixed top-0 left-0 right-0 z-50 safe-area-top">
+      <!-- Background with blur effect -->
+      <div class="absolute inset-0 bg-base-100/95 backdrop-blur-xl border-b-2 border-base-300"></div>
+      
+      <!-- Content -->
+      <div class="relative container mx-auto px-4 py-4">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3 flex-1 min-w-0">
+            <!-- Back Button -->
+            <router-link to="/" class="btn btn-ghost btn-circle btn-sm flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </router-link>
 
-    <div>
-      <!-- Tab Bar -->
-      <div class="tabs tabs-lifted mb-4">
-        <button
-          type="button"
-          @click="activeTab = 'infos'"
-          :class="['tab', activeTab === 'infos' ? 'tab-active' : '']"
-        >
-          Infos
-        </button>
-        <button
-          type="button"
-          @click="activeTab = 'checklist'"
-          :class="['tab', activeTab === 'checklist' ? 'tab-active' : '']"
-        >
-          Checklist
-        </button>
-        <button
-          type="button"
-          @click="activeTab = 'feed'"
-          :class="['tab', activeTab === 'feed' ? 'tab-active' : '']"
-        >
-          Feed
-        </button>
-      </div>
-
-      <!-- Tab Content -->
-      <div class="card bg-base-100 shadow-xl">
-        <div class="card-body">
-          <!-- Infos Tab -->
-          <div v-show="activeTab === 'infos'">
-            <h2 class="card-title mb-4">Basic Information</h2>
-            
-            <div class="form-control mb-4">
-              <label class="label">
-                <span class="label-text">Client / Site Name *</span>
-              </label>
-              <div class="relative" @click.stop>
-                <input
-                  type="text"
-                  v-model="form.client_name"
-                  @input="filterBaseTitleSuggestions"
-                  @focus="showBaseTitleSuggestions = true"
-                  @blur="handleBaseTitleInputBlur"
-                  required
-                  placeholder="Enter client or site name"
-                  class="input input-bordered w-full"
-                  list="base-title-suggestions"
-                />
-                <!-- Base Title Suggestions Dropdown -->
-                <div
-                  v-if="showBaseTitleSuggestions && filteredBaseTitleSuggestions.length > 0"
-                  class="absolute z-10 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-                >
-                  <button
-                    v-for="title in filteredBaseTitleSuggestions"
-                    :key="title"
-                    type="button"
-                    @click="selectBaseTitle(title)"
-                    class="w-full text-left px-4 py-2 hover:bg-base-200 transition-colors"
-                  >
-                    {{ title }}
-                  </button>
-                </div>
-              </div>
-              <div class="label">
-                <span class="label-text-alt text-base-content/60">
-                  Type to see suggestions from recent reports
-                </span>
-              </div>
-            </div>
-            
-            <!-- Sequence Number Display (read-only, auto-generated) -->
-            <div v-if="form.sequence_number" class="form-control mb-4">
-              <label class="label">
-                <span class="label-text">Report Number</span>
-              </label>
-              <div class="badge badge-lg badge-outline p-3">
-                {{ formatSequenceNumber(form.sequence_number) }}
-              </div>
-              <div class="label">
-                <span class="label-text-alt text-base-content/60">
-                  Auto-generated sequence number
-                </span>
-              </div>
-            </div>
-
-            <div class="form-control mb-4">
-              <label class="label">
-                <span class="label-text">Date & Time *</span>
-              </label>
-              <input
-                type="datetime-local"
-                v-model="form.date"
-                required
-                class="input input-bordered"
-              />
-            </div>
-
-            <div class="form-control mb-4">
-              <label class="label">
-                <span class="label-text">Status</span>
-              </label>
-              <div class="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  @click="form.status = 'In Progress'"
-                  :class="[
-                    'badge badge-lg cursor-pointer transition-all px-4 py-2',
-                    form.status === 'In Progress' ? 'badge-warning' : 'badge-outline'
-                  ]"
-                >
-                  In Progress
-                </button>
-                <button
-                  type="button"
-                  @click="form.status = 'Completed'"
-                  :class="[
-                    'badge badge-lg cursor-pointer transition-all px-4 py-2',
-                    form.status === 'Completed' ? 'badge-success' : 'badge-outline'
-                  ]"
-                >
-                  Completed
-                </button>
-              </div>
-            </div>
-
-          </div>
-
-          <!-- Checklist Tab -->
-          <div v-show="activeTab === 'checklist'">
-            <div class="flex justify-between items-center mb-4">
-              <h2 class="card-title">Checklist</h2>
+            <!-- Info Fields -->
+            <div class="flex items-center gap-3 flex-1 min-w-0 overflow-hidden">
+              <!-- Client Name -->
               <button
                 type="button"
-                @click="addChecklistItem"
-                class="btn btn-sm btn-primary btn-circle"
-                title="Add Item"
+                @click="openInfoSheet('client_name')"
+                class="text-left flex-1 min-w-0"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
-            </div>
-
-            <div v-if="checklistItems.length === 0" class="text-center py-4 text-base-content/70">
-              No checklist items. Click "Add Item" to create one.
-            </div>
-
-            <div v-else class="space-y-2">
-              <div
-                v-for="(item, index) in checklistItems"
-                :key="item.id"
-                class="flex flex-col gap-2 p-2 border rounded-lg"
-              >
-                <div class="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    v-model="item.checked"
-                    class="checkbox checkbox-primary"
-                  />
-                  <input
-                    type="text"
-                    v-model="item.label"
-                    placeholder="Checklist item label"
-                    class="input input-bordered flex-1"
-                  />
-                  <button
-                    type="button"
-                    @click="removeChecklistItem(index)"
-                    class="btn btn-sm btn-error btn-circle"
-                  >
-                    ×
-                  </button>
+                <div class="text-lg font-bold truncate">
+                  {{ form.client_name || 'Tap to add' }}
                 </div>
-                <!-- Category Badge for Checklist Item -->
-                <div v-if="item.category" class="flex items-center gap-2">
-                  <span class="badge badge-sm badge-primary">
-                    {{ getCategoryName(item.category) }}
-                  </span>
+              </button>
+
+              <!-- Date -->
+              <button
+                type="button"
+                @click="openInfoSheet('date')"
+                class="text-left flex-shrink-0"
+              >
+                <div class="text-sm font-medium">
+                  {{ formatDateForDisplay(form.date) }}
+                </div>
+              </button>
+
+              <!-- Status -->
+              <button
+                type="button"
+                @click="openInfoSheet('status')"
+                class="flex-shrink-0"
+              >
+                <div
+                  :class="[
+                    'badge',
+                    form.status === 'Completed' ? 'badge-success' : 'badge-warning'
+                  ]"
+                >
+                  {{ form.status || 'In Progress' }}
+                </div>
+              </button>
+
+              <!-- Sequence Number (if exists) -->
+              <div v-if="form.sequence_number" class="flex-shrink-0">
+                <div class="badge badge-outline">
+                  {{ formatSequenceNumber(form.sequence_number) }}
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Feed Tab (WhatsApp-style: text, photos, audio) -->
-          <div v-show="activeTab === 'feed'">
-            <div class="mb-4">
-              <h2 class="card-title">Feed</h2>
-            </div>
+          <!-- Sync Indicator -->
+          <div class="flex-shrink-0">
+            <SyncIndicator />
+          </div>
+        </div>
+      </div>
+    </div>
 
+    <!-- Feed Content -->
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body">
             <!-- Feed Entries (WhatsApp-style) -->
             <div ref="feedContainer" class="space-y-4 mb-4 max-h-96 overflow-y-auto">
               <div
-                v-for="entry in feedEntries"
+                v-for="entry in filteredFeedItems"
                 :key="entry.id"
                 class="flex flex-col gap-2"
                 @contextmenu.prevent="showEntryMenu($event, entry)"
@@ -276,7 +147,7 @@
                     <div v-else-if="entry.type === 'photo'">
                       <div v-if="getPhotoById(entry.photo_id)" class="relative">
                         <img
-                          :src="getPhotoUrl(getPhotoById(entry.photo_id))"
+                          :src="getPhotoUrlSync(getPhotoById(entry.photo_id))"
                           alt="Photo"
                           class="w-full max-w-xs rounded-lg cursor-pointer"
                           @click="openPhotoViewer(entry.photo_id)"
@@ -328,86 +199,145 @@
                 </div>
               </div>
 
-              <div v-if="feedEntries.length === 0" class="text-center py-8 text-base-content/70">
-                No entries yet. Add text, photos, or audio below.
+              <div v-if="filteredFeedItems.length === 0" class="text-center py-8 text-base-content/70">
+                No items yet. Add checks, text, photos, or audio below.
               </div>
             </div>
 
-            <!-- Input Area (WhatsApp-style bottom input) -->
-            <div class="border-t pt-4 space-y-3">
-              <!-- Category Selection (one-tap buttons) -->
-              <div v-if="availableCategories.length > 0" class="flex flex-wrap gap-2 mb-2">
+        </div>
+      </div>
+
+    <!-- Info Edit Bottom Sheet -->
+    <div
+      v-if="infoSheet.show"
+      class="fixed inset-0 z-50 flex items-end"
+      @click.self="closeInfoSheet"
+    >
+      <!-- Backdrop -->
+      <div class="absolute inset-0 bg-black/50" @click="closeInfoSheet"></div>
+      
+      <!-- Sheet Content -->
+      <div class="relative w-full bg-base-100 rounded-t-3xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <!-- Handle -->
+        <div class="flex justify-center pt-3 pb-2">
+          <div class="w-12 h-1 bg-base-300 rounded-full"></div>
+        </div>
+        
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-base-300">
+          <h2 class="text-xl font-bold">{{ getInfoSheetTitle() }}</h2>
+        </div>
+        
+        <!-- Content -->
+        <div class="flex-1 overflow-y-auto px-6 py-4">
+          <!-- Client Name Edit -->
+          <div v-if="infoSheet.field === 'client_name'" class="space-y-4">
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Client / Site Name *</span>
+              </label>
+              <div class="relative" @click.stop>
+                <input
+                  type="text"
+                  v-model="form.client_name"
+                  @input="filterBaseTitleSuggestions"
+                  @focus="showBaseTitleSuggestions = true"
+                  @blur="handleBaseTitleInputBlur"
+                  required
+                  placeholder="Enter client or site name"
+                  class="input input-bordered w-full"
+                  ref="clientNameInput"
+                />
+                <!-- Base Title Suggestions Dropdown -->
+                <div
+                  v-if="showBaseTitleSuggestions && filteredBaseTitleSuggestions.length > 0"
+                  class="absolute z-10 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                >
+                  <button
+                    v-for="title in filteredBaseTitleSuggestions"
+                    :key="title"
+                    type="button"
+                    @click="selectBaseTitle(title)"
+                    class="w-full text-left px-4 py-2 hover:bg-base-200 transition-colors"
+                  >
+                    {{ title }}
+                  </button>
+                </div>
+              </div>
+              <div class="label">
+                <span class="label-text-alt text-base-content/60">
+                  Type to see suggestions from recent reports
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Date Edit -->
+          <div v-else-if="infoSheet.field === 'date'" class="space-y-4">
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Date & Time *</span>
+              </label>
+              <input
+                type="datetime-local"
+                v-model="form.date"
+                required
+                class="input input-bordered w-full"
+                ref="dateInput"
+              />
+            </div>
+          </div>
+
+          <!-- Status Edit -->
+          <div v-else-if="infoSheet.field === 'status'" class="space-y-4">
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Status</span>
+              </label>
+              <div class="flex items-center gap-2 flex-wrap">
                 <button
-                  v-for="category in availableCategories"
-                  :key="category.id"
                   type="button"
-                  @click="selectCategory(category.id)"
+                  @click="form.status = 'In Progress'"
                   :class="[
-                    'btn btn-xs',
-                    selectedCategoryId === category.id ? 'btn-primary' : 'btn-outline'
+                    'badge badge-lg cursor-pointer transition-all px-4 py-2',
+                    form.status === 'In Progress' ? 'badge-warning' : 'badge-outline'
                   ]"
                 >
-                  {{ category.name }}
+                  In Progress
                 </button>
-              </div>
-              
-              <!-- Text Input -->
-              <textarea
-                v-model="feedTextInput"
-                placeholder="Type a message..."
-                class="textarea textarea-bordered w-full"
-                rows="2"
-                @keydown.ctrl.enter="addFeedEntry('text')"
-                @keydown.meta.enter="addFeedEntry('text')"
-              ></textarea>
-
-              <!-- Action Buttons -->
-              <div class="flex items-center gap-2">
-                <!-- Photo Button -->
-                <input
-                  type="file"
-                  ref="feedPhotoInput"
-                  @change="handleFeedPhotoUpload"
-                  accept="image/*"
-                  capture="environment"
-                  class="hidden"
-                />
                 <button
                   type="button"
-                  @click="$refs.feedPhotoInput.click()"
-                  class="btn btn-sm btn-circle btn-primary"
-                  title="Add Photo"
+                  @click="form.status = 'Completed'"
+                  :class="[
+                    'badge badge-lg cursor-pointer transition-all px-4 py-2',
+                    form.status === 'Completed' ? 'badge-success' : 'badge-outline'
+                  ]"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </button>
-
-                <!-- Audio Button -->
-                <AudioDictation
-                  :intervention-id="currentInterventionId"
-                  @transcription="handleFeedAudioTranscription"
-                  ref="feedAudioDictationRef"
-                />
-
-                <!-- Send Button -->
-                <button
-                  type="button"
-                  @click="addFeedEntry('text')"
-                  class="btn btn-sm btn-primary flex-1"
-                  :disabled="!feedTextInput.trim()"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                  Send
+                  Completed
                 </button>
               </div>
             </div>
           </div>
         </div>
+        
+        <!-- Footer -->
+        <div class="px-6 py-4 border-t border-base-300 flex gap-3">
+          <button
+            type="button"
+            @click="closeInfoSheet"
+            class="btn btn-ghost flex-1"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            @click="saveInfoSheet"
+            class="btn btn-primary flex-1"
+          >
+            Save
+          </button>
+        </div>
       </div>
-
     </div>
 
     <!-- Entry Context Menu -->
@@ -443,7 +373,12 @@
     <ImageEditor
       v-model="imageEditor.show"
       :photo="imageEditor.photo"
+      :is-new-image="imageEditor.isNewImage"
+      :available-categories="availableCategories"
+      :selected-category-id="imageEditor.selectedCategoryId"
+      @update:selected-category-id="imageEditor.selectedCategoryId = $event"
       @save="handleImageSave"
+      @add-to-feed="handleImageAddToFeed"
     />
 
     <!-- Image Viewer -->
@@ -461,6 +396,225 @@
         {{ autoSaving ? 'Saving...' : 'Saved' }}
       </div>
     </div>
+
+    <!-- Bottom Menu Bar -->
+    <div class="fixed bottom-0 left-0 right-0 z-40 safe-area-bottom bg-base-100 border-t border-base-300">
+      <div class="max-w-md mx-auto px-4 py-3">
+        <div class="flex items-center justify-around gap-2">
+          <!-- Text Button -->
+          <button
+            type="button"
+            @click="openFeedSheet('text')"
+            class="btn btn-ghost btn-circle"
+            title="Add Text"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
+
+          <!-- Image Button -->
+          <button
+            type="button"
+            @click="openImagePicker"
+            class="btn btn-ghost btn-circle"
+            title="Add Image"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </button>
+
+          <!-- Audio Button -->
+          <button
+            type="button"
+            @click="openFeedSheet('audio')"
+            class="btn btn-ghost btn-circle"
+            title="Add Audio"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+          </button>
+
+          <!-- Check Button -->
+          <button
+            type="button"
+            @click="openFeedSheet('check')"
+            class="btn btn-ghost btn-circle"
+            title="Add Check"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feed Item Bottom Sheet -->
+    <div
+      v-if="feedSheet.show"
+      class="fixed inset-0 z-50 flex items-end"
+      @click.self="closeFeedSheet"
+    >
+      <!-- Backdrop -->
+      <div class="absolute inset-0 bg-black/50" @click="closeFeedSheet"></div>
+      
+      <!-- Sheet Content -->
+      <div class="relative w-full bg-base-100 rounded-t-3xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <!-- Handle -->
+        <div class="flex justify-center pt-3 pb-2">
+          <div class="w-12 h-1 bg-base-300 rounded-full"></div>
+        </div>
+        
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-base-300">
+          <h2 class="text-xl font-bold">{{ getFeedSheetTitle() }}</h2>
+        </div>
+        
+        <!-- Content -->
+        <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          <!-- Category Selection -->
+          <div v-if="availableCategories.length > 0">
+            <label class="label">
+              <span class="label-text font-semibold">Category</span>
+            </label>
+            <select
+              v-model="feedSheetCategoryId"
+              class="select select-bordered w-full"
+              @change="selectCategoryForSheet(feedSheetCategoryId)"
+            >
+              <option :value="null">Select a category</option>
+              <option
+                v-for="category in availableCategories"
+                :key="category.id"
+                :value="category.id"
+              >
+                {{ category.name }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Text Input -->
+          <div v-if="feedSheet.type === 'text'">
+            <label class="label">
+              <span class="label-text font-semibold">Text</span>
+            </label>
+            <textarea
+              v-model="feedSheetTextInput"
+              placeholder="Type your message..."
+              class="textarea textarea-bordered w-full"
+              rows="6"
+              ref="feedSheetTextAreaRef"
+            ></textarea>
+          </div>
+
+          <!-- Check Input -->
+          <div v-if="feedSheet.type === 'check'">
+            <label class="label">
+              <span class="label-text font-semibold">Check Item</span>
+            </label>
+            <input
+              type="text"
+              v-model="feedSheetTextInput"
+              placeholder="Enter check item text..."
+              class="input input-bordered w-full mb-4"
+              ref="feedSheetTextInputRef"
+            />
+            <div class="form-control">
+              <label class="label cursor-pointer justify-start gap-3">
+                <input
+                  type="radio"
+                  :value="true"
+                  v-model="feedSheetCheckCompliant"
+                  class="radio radio-primary"
+                />
+                <span class="label-text">Compliant</span>
+              </label>
+              <label class="label cursor-pointer justify-start gap-3">
+                <input
+                  type="radio"
+                  :value="false"
+                  v-model="feedSheetCheckCompliant"
+                  class="radio radio-primary"
+                />
+                <span class="label-text">Not Compliant</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Audio Recording -->
+          <div v-if="feedSheet.type === 'audio'">
+            <label class="label">
+              <span class="label-text font-semibold">Audio Recording</span>
+            </label>
+            <AudioDictation
+              :intervention-id="currentInterventionId"
+              :transcribe-immediately="true"
+              @transcription="handleFeedSheetAudioTranscription"
+              @recording-stopped="handleFeedSheetRecordingStopped"
+              ref="feedSheetAudioDictationRef"
+            />
+            <!-- Transcription Status -->
+            <div v-if="feedSheetAudioTranscription" class="mt-4 p-3 bg-base-200 rounded-lg">
+              <p class="text-sm text-base-content/70 mb-1">Transcription:</p>
+              <p class="whitespace-pre-wrap text-sm">{{ feedSheetAudioTranscription }}</p>
+            </div>
+            <div v-else-if="isTranscribingAudio" class="mt-4 p-3 bg-base-200 rounded-lg">
+              <div class="flex items-center gap-2">
+                <span class="loading loading-spinner loading-sm"></span>
+                <p class="text-sm text-base-content/70">Transcribing audio...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Image Preview (if image was selected) -->
+          <div v-if="feedSheet.type === 'photo' && feedSheetImagePreview">
+            <label class="label">
+              <span class="label-text font-semibold">Image Preview</span>
+            </label>
+            <img :src="feedSheetImagePreview" alt="Preview" class="w-full max-w-md rounded-lg" />
+            <p class="text-sm text-base-content/70 mt-2">Image ready to add</p>
+          </div>
+        </div>
+        
+        <!-- Footer with Cancel and Send -->
+        <div class="px-6 py-4 border-t border-base-300 flex gap-3">
+          <button
+            type="button"
+            @click="closeFeedSheet"
+            class="btn btn-ghost btn-circle"
+            title="Cancel"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            @click="saveFeedSheet"
+            class="btn btn-primary flex-1"
+            :disabled="(feedSheet.type === 'text' || feedSheet.type === 'check') && !feedSheetTextInput.trim() || feedSheet.type === 'audio' && !feedSheetAudioTranscription || feedSheet.type === 'photo' && !feedSheetImageFile"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden Image Input -->
+    <input
+      type="file"
+      ref="feedPhotoInput"
+      @change="handleImagePickerSelect"
+      accept="image/*"
+      capture="environment"
+      class="hidden"
+    />
   </div>
 </template>
 
@@ -471,6 +625,7 @@ import { db } from '../db/indexeddb'
 import { generateUUID } from '../utils/uuid'
 import { syncInterventionToCloud, uploadPhotoToCloud, syncPhotoToCloud, deletePhotoFromCloud } from '../services/supabase'
 import { compressImage } from '../utils/imageCompression'
+import { blobToDataURL, toFile } from '../utils/blobUtils'
 import ImageEditor from '../components/ImageEditor.vue'
 import ImageViewer from '../components/ImageViewer.vue'
 import AudioDictation from '../components/AudioDictation.vue'
@@ -491,7 +646,13 @@ const router = useRouter()
 const isEdit = ref(false)
 const saving = ref(false)
 const photoInput = ref(null)
-const activeTab = ref('infos')
+// Info Sheet State
+const infoSheet = ref({
+  show: false,
+  field: null // 'client_name', 'date', 'status'
+})
+const clientNameInput = ref(null)
+const dateInput = ref(null)
 const audioDictationRef = ref(null)
 
 // Computed intervention ID for dictation (create temp ID for new interventions)
@@ -515,21 +676,36 @@ const form = ref({
   sequence_number: null // Auto-generated when saving
 })
 
-const checklistItems = ref([])
 const photos = ref([])
-const comments = ref([]) // Old comments structure (for migration)
-const commentText = ref('') // Old comment text (for migration)
+// Cache for Blob to data URL conversions (for display)
+const photoUrlCache = ref(new Map())
 
 // Base title autocomplete state
 const baseTitleSuggestions = ref([])
 const filteredBaseTitleSuggestions = ref([])
 const showBaseTitleSuggestions = ref(false)
 
-// Feed state (unified feed)
-const feedEntries = ref([]) // Unified feed entries (text, photo, audio)
-const feedTextInput = ref('')
-const feedPhotoInput = ref(null)
+// Unified feed state (replaces checklistItems and feedEntries)
+const feedItems = ref([]) // Unified feed items (text, photo, audio, check)
 const feedContainer = ref(null) // Ref for feed container (for auto-scroll)
+const feedFilter = ref('all') // 'all' | 'check' | 'note' | 'photo'
+
+// Feed Sheet State
+const feedSheet = ref({
+  show: false,
+  type: null // 'text', 'photo', 'audio', 'check'
+})
+const feedSheetTextInput = ref('')
+const feedSheetCategoryId = ref(null)
+const feedSheetCheckCompliant = ref(true) // true = compliant, false = not compliant
+const feedSheetImageFile = ref(null)
+const feedSheetImagePreview = ref(null)
+const feedSheetAudioTranscription = ref('')
+const isTranscribingAudio = ref(false)
+const feedSheetTextAreaRef = ref(null)
+const feedSheetTextInputRef = ref(null)
+const feedSheetAudioDictationRef = ref(null)
+const feedPhotoInput = ref(null)
 
 // Auto-save state
 const autoSaving = ref(false)
@@ -546,10 +722,21 @@ const initialLoadComplete = ref(false)
 const selectedCategoryId = ref(null)
 const availableCategories = ref([])
 
+// Computed: Filtered feed items
+const filteredFeedItems = computed(() => {
+  if (feedFilter.value === 'all') return feedItems.value
+  if (feedFilter.value === 'check') return feedItems.value.filter(item => item.type === 'check')
+  if (feedFilter.value === 'note') return feedItems.value.filter(item => item.type === 'text' || item.type === 'audio')
+  if (feedFilter.value === 'photo') return feedItems.value.filter(item => item.type === 'photo')
+  return feedItems.value
+})
+
 // Image Editor State
 const imageEditor = ref({
   show: false,
-  photo: null
+  photo: null,
+  isNewImage: false, // true if this is a new image from feed sheet
+  selectedCategoryId: null
 })
 
 // Image Viewer State
@@ -574,43 +761,103 @@ async function loadIntervention() {
           status: intervention.status || 'In Progress'
         }
 
-        // Load checklist items from JSONB column
-        checklistItems.value = Array.isArray(intervention.checklist_items) 
-          ? intervention.checklist_items.map(item => ({
-              id: item.id || generateUUID(),
-              label: item.label || '',
-              checked: item.checked || false,
-              photo_ids: Array.isArray(item.photo_ids) ? item.photo_ids : [],
-              category: item.category || null
-            }))
-          : []
-
         // Load photos (still separate table)
-        photos.value = await db.photos
+        const loadedPhotos = await db.photos
           .where('intervention_id').equals(route.params.id)
           .toArray()
+        
+        // Convert old base64 strings to Blobs for backward compatibility
+        photos.value = await Promise.all(loadedPhotos.map(async (photo) => {
+          // If url_local is a base64 string, convert to Blob
+          if (photo.url_local && typeof photo.url_local === 'string' && photo.url_local.startsWith('data:')) {
+            const response = await fetch(photo.url_local)
+            const blob = await response.blob()
+            // Compress the converted image
+            const file = new File([blob], photo.file_name || 'photo.jpg', { type: photo.file_type || 'image/jpeg' })
+            const compressedFile = await compressImage(file, {
+              maxSizeMB: 1,
+              maxWidthOrHeight: 1920,
+              initialQuality: 0.8
+            })
+            const compressedBlob = new Blob([compressedFile], { type: compressedFile.type || 'image/jpeg' })
+            
+            // Update photo with Blob
+            photo.url_local = compressedBlob
+            photo.file_size = compressedFile.size
+            photo.file_type = compressedFile.type || 'image/jpeg'
+            
+            // Save updated photo back to IndexedDB
+            await db.photos.put(photo)
+          }
+          
+          // Pre-populate cache for display
+          if (photo.url_local instanceof Blob) {
+            const dataURL = await blobToDataURL(photo.url_local)
+            photoUrlCache.value.set(photo.id, dataURL)
+          } else if (typeof photo.url_local === 'string') {
+            photoUrlCache.value.set(photo.id, photo.url_local)
+          }
+          
+          return photo
+        }))
 
-        // Load feed entries from JSONB column (new unified structure)
-        feedEntries.value = Array.isArray(intervention.comments)
-          ? intervention.comments
-              .filter(entry => entry.type) // Only entries with type (new format)
+        // Load unified feed items from feed_items column (with backward compatibility)
+        let allFeedItems = []
+        
+        // Try feed_items first (new unified structure)
+        if (Array.isArray(intervention.feed_items) && intervention.feed_items.length > 0) {
+          allFeedItems = intervention.feed_items.map(item => ({
+            id: item.id || generateUUID(),
+            type: item.type || 'text',
+            text: item.text || item.label || '', // Support both 'text' and 'label' (for migrated checks)
+            checked: item.checked,
+            photo_id: item.photo_id || null,
+            photo_ids: Array.isArray(item.photo_ids) ? item.photo_ids : [],
+            transcription: item.transcription || null,
+            pending_audio_id: item.pending_audio_id || null,
+            category: item.category || null,
+            created_at: item.created_at || new Date().toISOString(),
+            status: item.status || 'completed'
+          }))
+        } else {
+          // Backward compatibility: migrate from checklist_items and comments
+          // Migrate checklist_items to feed_items (type: 'check')
+          if (Array.isArray(intervention.checklist_items) && intervention.checklist_items.length > 0) {
+            const checkItems = intervention.checklist_items.map(item => ({
+              id: item.id || generateUUID(),
+              type: 'check',
+              text: item.label || '',
+              checked: item.checked || false,
+              photo_ids: Array.isArray(item.photo_ids) ? item.photo_ids : [],
+              category: item.category || null,
+              created_at: item.created_at || new Date().toISOString(),
+              status: 'completed'
+            }))
+            allFeedItems.push(...checkItems)
+          }
+          
+          // Migrate comments to feed_items (type: 'text', 'photo', 'audio')
+          if (Array.isArray(intervention.comments) && intervention.comments.length > 0) {
+            const commentItems = intervention.comments
+              .filter(entry => entry.type || !entry.type) // Include all (old and new format)
               .map(entry => {
+                // Determine type
+                let type = entry.type || 'text'
+                if (entry.photo_id) type = 'photo'
+                if (entry.transcription || entry.pending_audio_id) type = 'audio'
+                
                 // For photo entries, check if photo has url_cloud to determine status
                 let status = entry.status || 'completed'
-                if (entry.type === 'photo' && entry.photo_id) {
+                if (type === 'photo' && entry.photo_id) {
                   const photo = photos.value.find(p => p.id === entry.photo_id)
-                  if (photo) {
-                    // If photo doesn't have url_cloud, it's pending upload
-                    if (!photo.url_cloud) {
-                      status = 'pending'
-                    } else {
-                      status = 'completed'
-                    }
+                  if (photo && !photo.url_cloud) {
+                    status = 'pending'
                   }
                 }
+                
                 return {
                   id: entry.id || generateUUID(),
-                  type: entry.type || 'text',
+                  type: type,
                   text: entry.text || '',
                   photo_id: entry.photo_id || null,
                   transcription: entry.transcription || null,
@@ -620,19 +867,12 @@ async function loadIntervention() {
                   status: status
                 }
               })
-              .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-          : []
+            allFeedItems.push(...commentItems)
+          }
+        }
         
-        // Load old comments format for migration
-        comments.value = Array.isArray(intervention.comments)
-          ? intervention.comments
-              .filter(entry => !entry.type) // Old format entries
-              .map(comment => ({
-                id: comment.id || generateUUID(),
-                text: comment.text || '',
-                created_at: comment.created_at || new Date().toISOString()
-              }))
-          : []
+        // Sort by created_at
+        feedItems.value = allFeedItems.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
         
         // Check for pending audio (for status display)
         const pendingAudios = await db.pending_audio
@@ -640,12 +880,12 @@ async function loadIntervention() {
           .equals(route.params.id)
           .toArray()
         
-        // Update feed entries with pending audio status
-        for (const entry of feedEntries.value) {
-          if (entry.type === 'audio' && entry.pending_audio_id) {
-            const pendingAudio = pendingAudios.find(pa => pa.id === entry.pending_audio_id)
-            if (pendingAudio && !entry.transcription) {
-              entry.status = 'pending'
+        // Update feed items with pending audio status
+        for (const item of feedItems.value) {
+          if (item.type === 'audio' && item.pending_audio_id) {
+            const pendingAudio = pendingAudios.find(pa => pa.id === item.pending_audio_id)
+            if (pendingAudio && !item.transcription) {
+              item.status = 'pending'
             }
           }
         }
@@ -697,7 +937,7 @@ function handleGlobalAudioTranscribing(event) {
   // Only handle if it's for the current intervention
   if (interventionId === currentInterventionId.value || interventionId === route.params.id) {
     // Find the feed entry matching the pending audio ID
-    const entry = feedEntries.value.find(e => 
+    const entry = feedItems.value.find(e => 
       e.type === 'audio' && 
       e.pending_audio_id === pendingAudioId
     )
@@ -718,21 +958,21 @@ function handleGlobalAudioTranscription(event) {
   
   // Only handle if it's for the current intervention
   if (interventionId === currentInterventionId.value || interventionId === route.params.id) {
-    // Find the feed entry matching the pending audio ID
-    let entry = feedEntries.value.find(e => 
+    // Find the feed item matching the pending audio ID
+    let entry = feedItems.value.find(e => 
       e.type === 'audio' && 
       e.pending_audio_id === pendingAudioId
     )
     
     // If not found by pending_audio_id, find most recent pending entry
     if (!entry) {
-      entry = feedEntries.value
+      entry = feedItems.value
         .filter(e => e.type === 'audio' && e.status === 'pending' && !e.transcription)
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]
     }
     
     if (entry) {
-      // Update existing entry with transcription
+      // Update existing item with transcription
       entry.transcription = transcription
       entry.status = 'completed'
       // Clear pending_audio_id since it's been transcribed
@@ -746,7 +986,7 @@ function handleGlobalAudioTranscription(event) {
         autoSave()
       }
     } else {
-      // Create new entry if none found (shouldn't happen, but fallback)
+      // Create new item if none found (shouldn't happen, but fallback)
       const newEntry = {
         id: generateUUID(),
         type: 'audio',
@@ -755,7 +995,7 @@ function handleGlobalAudioTranscription(event) {
         created_at: new Date().toISOString(),
         status: 'completed'
       }
-      feedEntries.value.push(newEntry)
+      feedItems.value.push(newEntry)
       
       // Scroll to bottom after adding fallback audio entry
       scrollFeedToBottom()
@@ -805,49 +1045,44 @@ function selectBaseTitle(title) {
 }
 
 
-function addChecklistItem() {
-  // Get category for checklist item
-  const trade = getSelectedTrade() || TRADES.GENERAL
-  const categoryId = selectedCategoryId.value || getLastUsedCategory(trade) || getDefaultCategory(trade)
-  
-  checklistItems.value.push({
-    id: generateUUID(),
-    intervention_id: route.params.id || null,
-    label: '',
-    checked: false,
-    photo_ids: [],
-    category: categoryId
-  })
-}
-
-function removeChecklistItem(index) {
-  checklistItems.value.splice(index, 1)
-}
+// Old checklist functions removed - now using unified feedItems (addCheckItem function)
 
 async function handlePhotoUpload(event) {
   const file = event.target.files[0]
   if (!file) return
 
   const photoId = generateUUID()
-  const reader = new FileReader()
   
-  reader.onload = async (e) => {
+  try {
+    // Compress image before storing
+    const compressedFile = await compressImage(file, {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1920,
+      initialQuality: 0.8
+    })
+    
+    // Convert compressed file to Blob for storage
+    const blob = new Blob([compressedFile], { type: compressedFile.type || 'image/jpeg' })
+    
     const photo = {
       id: photoId,
       intervention_id: route.params.id || null,
-      url_local: e.target.result, // Base64 data URL (stored in IndexedDB)
+      url_local: blob, // Blob stored in IndexedDB (more efficient than base64)
       url_cloud: null,
       description: '',
       taken_at: new Date().toISOString(),
-      file_name: file.name, // Store original filename
-      file_type: file.type, // Store MIME type
-      file_size: file.size // Store file size
+      file_name: compressedFile.name || file.name,
+      file_type: compressedFile.type || 'image/jpeg',
+      file_size: compressedFile.size
     }
     
+    // Save to IndexedDB immediately
+    await db.photos.put(photo)
     photos.value.push(photo)
+  } catch (error) {
+    console.error('Error processing photo:', error)
   }
   
-  reader.readAsDataURL(file) // Convert to base64
   event.target.value = '' // Reset input
 }
 
@@ -883,6 +1118,8 @@ async function removePhoto(photoId) {
 // Image Editor Functions
 function openImageEditor(photo) {
   imageEditor.value.photo = photo
+  imageEditor.value.isNewImage = false // Editing existing photo
+  imageEditor.value.selectedCategoryId = null
   imageEditor.value.show = true
 }
 
@@ -892,9 +1129,66 @@ function openImageViewer(index) {
   imageViewer.value.show = true
 }
 
-function getPhotoUrl(photo) {
-  // Try local first, then cloud, fallback to empty string
-  return photo.url_local || photo.url_cloud || ''
+async function getPhotoUrl(photo) {
+  if (!photo) return ''
+  
+  // Try cloud URL first (if available)
+  if (photo.url_cloud) {
+    return photo.url_cloud
+  }
+  
+  // Try local Blob/data URL
+  if (photo.url_local) {
+    // Check cache first
+    if (photoUrlCache.value.has(photo.id)) {
+      return photoUrlCache.value.get(photo.id)
+    }
+    
+    // If it's a Blob, convert to data URL and cache it
+    if (photo.url_local instanceof Blob) {
+      const dataURL = await blobToDataURL(photo.url_local)
+      photoUrlCache.value.set(photo.id, dataURL)
+      return dataURL
+    }
+    
+    // If it's already a data URL string (backward compatibility), cache and return it
+    if (typeof photo.url_local === 'string') {
+      photoUrlCache.value.set(photo.id, photo.url_local)
+      return photo.url_local
+    }
+  }
+  
+  return ''
+}
+
+// Synchronous version for template use (uses cache)
+function getPhotoUrlSync(photo) {
+  if (!photo) return ''
+  
+  // Try cloud URL first
+  if (photo.url_cloud) {
+    return photo.url_cloud
+  }
+  
+  // Try cache
+  if (photoUrlCache.value.has(photo.id)) {
+    return photoUrlCache.value.get(photo.id)
+  }
+  
+  // If it's already a string (backward compatibility), return it
+  if (typeof photo.url_local === 'string') {
+    return photo.url_local
+  }
+  
+  // If it's a Blob, trigger async conversion (will update cache)
+  if (photo.url_local instanceof Blob) {
+    blobToDataURL(photo.url_local).then(dataURL => {
+      photoUrlCache.value.set(photo.id, dataURL)
+    })
+    return '' // Return empty initially, will update when conversion completes
+  }
+  
+  return ''
 }
 
 function handleImageError(event, photo) {
@@ -907,15 +1201,67 @@ function handleImageError(event, photo) {
   event.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2RkZCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5JbWFnZSBub3QgYXZhaWxhYmxlPC90ZXh0Pjwvc3ZnPg=='
 }
 
-function handleImageSave(dataURL) {
+async function handleImageSave(dataURL) {
   if (!imageEditor.value.photo) return
   
-  // Update the photo with the edited image
-  const photoIndex = photos.value.findIndex(p => p.id === imageEditor.value.photo.id)
-  if (photoIndex > -1) {
-    photos.value[photoIndex].url_local = dataURL
-    // Reset cloud URL since image has been edited
-    photos.value[photoIndex].url_cloud = null
+  try {
+    // Convert data URL to File, compress, then store as Blob
+    const response = await fetch(dataURL)
+    const blob = await response.blob()
+    const file = new File([blob], 'edited-image.png', { type: 'image/png' })
+    
+    // Compress image before storing
+    const compressedFile = await compressImage(file, {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1920,
+      initialQuality: 0.8
+    })
+    
+    // Convert compressed file to Blob for storage
+    const compressedBlob = new Blob([compressedFile], { type: compressedFile.type || 'image/jpeg' })
+    
+    // This is editing an existing photo (not a new image)
+    const photoIndex = photos.value.findIndex(p => p.id === imageEditor.value.photo.id)
+    if (photoIndex > -1) {
+      photos.value[photoIndex].url_local = compressedBlob
+      photos.value[photoIndex].file_size = compressedFile.size
+      photos.value[photoIndex].file_type = compressedFile.type || 'image/jpeg'
+      // Reset cloud URL since image has been edited
+      photos.value[photoIndex].url_cloud = null
+      // Clear cache for this photo
+      photoUrlCache.value.delete(photos.value[photoIndex].id)
+      
+      // Update in IndexedDB
+      await db.photos.put(photos.value[photoIndex])
+    }
+    
+    // Reset editor state
+    imageEditor.value.isNewImage = false
+    imageEditor.value.selectedCategoryId = null
+  } catch (error) {
+    console.error('Error saving edited image:', error)
+  }
+}
+
+async function handleImageAddToFeed({ dataURL, categoryId }) {
+  if (!dataURL || !categoryId) return
+  
+  try {
+    // Convert dataURL to File
+    const response = await fetch(dataURL)
+    const blob = await response.blob()
+    const file = new File([blob], 'edited-image.png', { type: 'image/png' })
+    
+    // Upload photo and add to feed (will compress and store as Blob)
+    await handleFeedPhotoUploadFromSheet(file, categoryId)
+    
+    // Reset editor state
+    imageEditor.value.isNewImage = false
+    imageEditor.value.selectedCategoryId = null
+    feedSheetImageFile.value = null
+    feedSheetImagePreview.value = null
+  } catch (error) {
+    console.error('Error adding image to feed:', error)
   }
 }
 
@@ -965,14 +1311,41 @@ function selectCategory(categoryId) {
 }
 
 // Feed Functions
-function addFeedEntry(type) {
+function addCheckItem() {
+  // Get category (use selected or default)
+  const trade = getSelectedTrade() || TRADES.GENERAL
+  const categoryId = selectedCategoryId.value || getLastUsedCategory(trade) || getDefaultCategory(trade)
+  
+  const item = {
+    id: generateUUID(),
+    type: 'check',
+    text: '',
+    checked: false,
+    photo_ids: [],
+    category: categoryId,
+    created_at: new Date().toISOString(),
+    status: 'completed'
+  }
+  
+  feedItems.value.push(item)
+  
+  // Scroll to bottom after adding item
+  scrollFeedToBottom()
+  
+  // Trigger auto-save
+  if (initialLoadComplete.value) {
+    autoSave()
+  }
+}
+
+function addFeedItem(type) {
   if (type === 'text' && !feedTextInput.value.trim()) return
   
   // Get category (use selected or default)
   const trade = getSelectedTrade() || TRADES.GENERAL
   const categoryId = selectedCategoryId.value || getLastUsedCategory(trade) || getDefaultCategory(trade)
   
-  const entry = {
+  const item = {
     id: generateUUID(),
     type: type,
     text: type === 'text' ? feedTextInput.value.trim() : '',
@@ -984,15 +1357,25 @@ function addFeedEntry(type) {
     status: 'completed'
   }
   
-  feedEntries.value.push(entry)
+  feedItems.value.push(item)
   feedTextInput.value = ''
   
-  // Scroll to bottom after adding entry
+  // Scroll to bottom after adding item
   scrollFeedToBottom()
   
-  // Trigger auto-save after adding text entry
+  // Trigger auto-save
   if (initialLoadComplete.value) {
     autoSave()
+  }
+}
+
+function removeFeedItem(itemId) {
+  const index = feedItems.value.findIndex(item => item.id === itemId)
+  if (index > -1) {
+    feedItems.value.splice(index, 1)
+    if (initialLoadComplete.value) {
+      autoSave()
+    }
   }
 }
 
@@ -1001,20 +1384,29 @@ async function handleFeedPhotoUpload(event) {
   if (!file) return
 
   const photoId = generateUUID()
-  const reader = new FileReader()
   
-  reader.onload = async (e) => {
-    // Create photo object with base64 local storage (offline-first)
+  try {
+    // Compress image before storing
+    const compressedFile = await compressImage(file, {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1920,
+      initialQuality: 0.8
+    })
+    
+    // Convert compressed file to Blob for storage
+    const blob = new Blob([compressedFile], { type: compressedFile.type || 'image/jpeg' })
+    
+    // Create photo object with Blob local storage (offline-first)
     const photo = {
       id: photoId,
       intervention_id: currentInterventionId.value,
-      url_local: e.target.result, // Base64 data URL - stored locally
+      url_local: blob, // Blob stored in IndexedDB (more efficient than base64)
       url_cloud: null, // Will be set during sync
       description: '',
       taken_at: new Date().toISOString(),
-      file_name: file.name,
-      file_type: file.type,
-      file_size: file.size
+      file_name: compressedFile.name || file.name,
+      file_type: compressedFile.type || 'image/jpeg',
+      file_size: compressedFile.size
     }
     
     // Save to IndexedDB immediately (offline-first)
@@ -1025,8 +1417,8 @@ async function handleFeedPhotoUpload(event) {
     const trade = getSelectedTrade() || TRADES.GENERAL
     const categoryId = selectedCategoryId.value || getLastUsedCategory(trade) || getDefaultCategory(trade)
     
-    // Create feed entry for photo
-    const entry = {
+    // Create feed item for photo
+    const item = {
       id: generateUUID(),
       type: 'photo',
       photo_id: photoId,
@@ -1035,7 +1427,7 @@ async function handleFeedPhotoUpload(event) {
       status: navigator.onLine ? 'pending' : 'pending' // Will be uploaded during sync
     }
     
-    feedEntries.value.push(entry)
+    feedItems.value.push(item)
     
     // Scroll to bottom after adding photo entry
     scrollFeedToBottom()
@@ -1047,9 +1439,10 @@ async function handleFeedPhotoUpload(event) {
     
     // Note: Photo upload to Supabase Storage happens during sync, not immediately
     // This ensures offline-first behavior - photos are always saved locally first
+  } catch (error) {
+    console.error('Error processing photo:', error)
   }
   
-  reader.readAsDataURL(file)
   event.target.value = ''
 }
 
@@ -1070,7 +1463,7 @@ async function handleFeedAudioRecordingStarted() {
     status: 'pending'
   }
   
-  feedEntries.value.push(entry)
+  feedItems.value.push(entry)
   
   // Scroll to bottom when recording starts
   scrollFeedToBottom()
@@ -1094,7 +1487,7 @@ async function handleFeedAudioRecordingStarted() {
 
 async function handleFeedAudioTranscription(transcription) {
   // Find the most recent pending audio entry in feed (created when recording started)
-  const pendingAudioEntries = feedEntries.value
+  const pendingAudioEntries = feedItems.value
     .filter(e => e.type === 'audio' && e.status === 'pending' && !e.transcription)
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
   
@@ -1128,7 +1521,7 @@ async function handleFeedAudioTranscription(transcription) {
       status: 'completed'
     }
     
-    feedEntries.value.push(entry)
+    feedItems.value.push(entry)
     
     // Scroll to bottom after adding audio entry
     scrollFeedToBottom()
@@ -1212,7 +1605,7 @@ function duplicateEntry(entry) {
     duplicated.category = getLastUsedCategory(trade) || getDefaultCategory(trade)
   }
   
-  feedEntries.value.push(duplicated)
+  feedItems.value.push(duplicated)
   entryMenu.value.show = false
   
   // Scroll to bottom after duplicating entry
@@ -1232,9 +1625,9 @@ function deleteEntry(entry) {
     return
   }
   
-  const index = feedEntries.value.findIndex(e => e.id === entry.id)
+  const index = feedItems.value.findIndex(e => e.id === entry.id)
   if (index > -1) {
-    feedEntries.value.splice(index, 1)
+    feedItems.value.splice(index, 1)
     
     // Also delete associated photo/audio if needed
     if (entry.type === 'photo' && entry.photo_id) {
@@ -1273,25 +1666,300 @@ function handleEntryTouchEnd() {
   }
 }
 
-// Old comment function (kept for backward compatibility during migration)
-function addComment() {
-  if (!commentText.value.trim()) return
-  
-  const comment = {
-    id: generateUUID(),
-    intervention_id: route.params.id || null,
-    text: commentText.value.trim(),
-    created_at: new Date().toISOString()
-  }
-  
-  comments.value.push(comment)
-  commentText.value = ''
-}
+// Old addComment function removed - now using unified feedItems (addFeedItem function)
 
 
 function formatDate(dateString) {
   if (!dateString) return ''
   return new Date(dateString).toLocaleString()
+}
+
+function formatDateForDisplay(dateString) {
+  if (!dateString) return 'Tap to set'
+  const date = new Date(dateString)
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = String(date.getFullYear()).slice(-2)
+  return `${day}/${month}/${year}`
+}
+
+// Info Sheet Functions
+function openInfoSheet(field) {
+  infoSheet.value = {
+    show: true,
+    field: field
+  }
+  // Focus the input after sheet opens
+  nextTick(() => {
+    if (field === 'client_name' && clientNameInput.value) {
+      clientNameInput.value.focus()
+    } else if (field === 'date' && dateInput.value) {
+      dateInput.value.focus()
+    }
+  })
+}
+
+function closeInfoSheet() {
+  infoSheet.value = {
+    show: false,
+    field: null
+  }
+}
+
+function saveInfoSheet() {
+  // Trigger auto-save
+  if (initialLoadComplete.value) {
+    autoSave()
+  }
+  closeInfoSheet()
+}
+
+function getInfoSheetTitle() {
+  switch (infoSheet.value.field) {
+    case 'client_name':
+      return 'Edit Client / Site Name'
+    case 'date':
+      return 'Edit Date & Time'
+    case 'status':
+      return 'Edit Status'
+    default:
+      return 'Edit Information'
+  }
+}
+
+// Feed Sheet Functions
+function openFeedSheet(type) {
+  const trade = getSelectedTrade() || TRADES.GENERAL
+  feedSheetCategoryId.value = selectedCategoryId.value || getLastUsedCategory(trade) || getDefaultCategory(trade)
+  
+  feedSheet.value = {
+    show: true,
+    type: type
+  }
+  
+  feedSheetTextInput.value = ''
+  feedSheetCheckCompliant.value = true
+  feedSheetImageFile.value = null
+  feedSheetImagePreview.value = null
+  feedSheetAudioTranscription.value = ''
+  
+  // Focus input after sheet opens
+  nextTick(() => {
+    if (type === 'text' && feedSheetTextAreaRef.value) {
+      feedSheetTextAreaRef.value.focus()
+    } else if (type === 'check' && feedSheetTextInputRef.value) {
+      feedSheetTextInputRef.value.focus()
+    }
+  })
+}
+
+function closeFeedSheet() {
+  feedSheet.value = {
+    show: false,
+    type: null
+  }
+  feedSheetTextInput.value = ''
+  feedSheetCheckCompliant.value = true
+  feedSheetImageFile.value = null
+  feedSheetImagePreview.value = null
+  feedSheetAudioTranscription.value = ''
+}
+
+function selectCategoryForSheet(categoryId) {
+  feedSheetCategoryId.value = categoryId
+  const trade = getSelectedTrade() || TRADES.GENERAL
+  saveLastUsedCategory(trade, categoryId)
+}
+
+function getFeedSheetTitle() {
+  switch (feedSheet.value.type) {
+    case 'text':
+      return 'Add Text'
+    case 'photo':
+      return 'Add Image'
+    case 'audio':
+      return 'Add Audio'
+    case 'check':
+      return 'Add Check'
+    default:
+      return 'Add Item'
+  }
+}
+
+async function saveFeedSheet() {
+  if ((feedSheet.value.type === 'text' || feedSheet.value.type === 'check') && !feedSheetTextInput.value.trim()) return
+  if (feedSheet.value.type === 'audio' && !feedSheetAudioTranscription.value) return
+  if (feedSheet.value.type === 'photo' && !feedSheetImageFile.value) return
+  
+  const categoryId = feedSheetCategoryId.value
+  
+  if (feedSheet.value.type === 'text') {
+    const item = {
+      id: generateUUID(),
+      type: 'text',
+      text: feedSheetTextInput.value.trim(),
+      category: categoryId,
+      created_at: new Date().toISOString(),
+      status: 'completed'
+    }
+    feedItems.value.push(item)
+  } else if (feedSheet.value.type === 'check') {
+    const item = {
+      id: generateUUID(),
+      type: 'check',
+      text: feedSheetTextInput.value.trim(),
+      checked: feedSheetCheckCompliant.value,
+      photo_ids: [],
+      category: categoryId,
+      created_at: new Date().toISOString(),
+      status: 'completed'
+    }
+    feedItems.value.push(item)
+  } else if (feedSheet.value.type === 'photo' && feedSheetImageFile.value) {
+    // Handle photo upload
+    await handleFeedPhotoUploadFromSheet(feedSheetImageFile.value, categoryId)
+  } else if (feedSheet.value.type === 'audio' && feedSheetAudioTranscription.value) {
+    const item = {
+      id: generateUUID(),
+      type: 'audio',
+      transcription: feedSheetAudioTranscription.value,
+      pending_audio_id: null,
+      category: categoryId,
+      created_at: new Date().toISOString(),
+      status: 'completed'
+    }
+    feedItems.value.push(item)
+  }
+  
+  closeFeedSheet()
+  scrollFeedToBottom()
+  
+  if (initialLoadComplete.value) {
+    autoSave()
+  }
+}
+
+function openImagePicker() {
+  if (feedPhotoInput.value) {
+    feedPhotoInput.value.click()
+  }
+}
+
+async function handleImagePickerSelect(event) {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  // Read file and open image editor
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    feedSheetImagePreview.value = e.target.result
+    feedSheetImageFile.value = file
+    
+    // Get default category
+    const trade = getSelectedTrade() || TRADES.GENERAL
+    const defaultCategoryId = selectedCategoryId.value || getLastUsedCategory(trade) || getDefaultCategory(trade)
+    
+    // Open image editor with category selector
+    imageEditor.value.photo = {
+      id: generateUUID(),
+      url_local: e.target.result,
+      url_cloud: null
+    }
+    imageEditor.value.isNewImage = true
+    imageEditor.value.selectedCategoryId = defaultCategoryId
+    imageEditor.value.show = true
+  }
+  reader.readAsDataURL(file)
+  
+  // Reset input
+  if (event.target) {
+    event.target.value = ''
+  }
+}
+
+async function handleFeedPhotoUploadFromSheet(photoFile, categoryId) {
+  if (!photoFile) return
+
+  const photoId = generateUUID()
+  
+  try {
+    let fileToProcess = photoFile
+    
+    // If it's a data URL (from editor), convert to File first
+    if (feedSheetImagePreview.value && typeof feedSheetImagePreview.value === 'string' && feedSheetImagePreview.value.startsWith('data:')) {
+      const response = await fetch(feedSheetImagePreview.value)
+      const blob = await response.blob()
+      fileToProcess = new File([blob], 'edited-image.png', { type: 'image/png' })
+    }
+    
+    // Compress image before storing
+    const compressedFile = await compressImage(fileToProcess, {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1920,
+      initialQuality: 0.8
+    })
+    
+    // Convert compressed file to Blob for storage
+    const blob = new Blob([compressedFile], { type: compressedFile.type || 'image/jpeg' })
+    
+    // Create photo object with Blob local storage (offline-first)
+    const photo = {
+      id: photoId,
+      intervention_id: currentInterventionId.value,
+      url_local: blob, // Blob stored in IndexedDB (more efficient than base64)
+      url_cloud: null, // Will be set during sync
+      description: '',
+      taken_at: new Date().toISOString(),
+      file_name: compressedFile.name || photoFile.name || 'edited-image.png',
+      file_type: compressedFile.type || 'image/jpeg',
+      file_size: compressedFile.size
+    }
+    
+    // Save to IndexedDB immediately (offline-first)
+    await db.photos.put(photo)
+    photos.value.push(photo)
+    
+    // Create feed item for photo
+    const item = {
+      id: generateUUID(),
+      type: 'photo',
+      photo_id: photoId,
+      category: categoryId,
+      created_at: new Date().toISOString(),
+      status: navigator.onLine ? 'pending' : 'pending' // Will be uploaded during sync
+    }
+    
+    feedItems.value.push(item)
+    
+    // Scroll to bottom after adding photo entry
+    scrollFeedToBottom()
+    
+    // Trigger auto-save after adding photo entry
+    if (initialLoadComplete.value) {
+      autoSave()
+    }
+  } catch (error) {
+    console.error('Error processing photo:', error)
+  }
+}
+
+function handleFeedSheetAudioTranscription(transcription) {
+  feedSheetAudioTranscription.value = transcription
+  isTranscribingAudio.value = false
+}
+
+async function handleFeedSheetRecordingStopped(audioBlob) {
+  // Reset transcription state
+  feedSheetAudioTranscription.value = ''
+  isTranscribingAudio.value = false
+  
+  // If online, transcription will happen automatically via AudioDictation component
+  // (transcribeImmediately prop is true)
+  if (navigator.onLine) {
+    isTranscribingAudio.value = true
+  }
+  // If offline, transcription will happen later when online
+  // The send button will remain disabled until transcription is available
 }
 
 // Save to local DB only (instant, non-blocking)
@@ -1329,42 +1997,23 @@ async function saveInterventionLocal() {
     }
     const now = new Date().toISOString()
     
-    // Prepare checklist items as JSONB array
+    // Prepare unified feed items as JSONB array
     // Deep clone to avoid Vue reactivity issues with IndexedDB
-    const checklistItemsData = JSON.parse(JSON.stringify(
-      checklistItems.value.map(item => ({
+    const feedItemsData = JSON.parse(JSON.stringify(
+      feedItems.value.map(item => ({
         id: item.id || generateUUID(),
-        label: item.label || '',
-        checked: item.checked || false,
-        photo_ids: Array.isArray(item.photo_ids) ? [...item.photo_ids] : [],
-        category: item.category || null
+        type: item.type || 'text',
+        text: item.text || '',
+        checked: item.type === 'check' ? (item.checked || false) : undefined,
+        photo_id: item.photo_id || undefined,
+        photo_ids: item.type === 'check' ? (Array.isArray(item.photo_ids) ? [...item.photo_ids] : []) : undefined,
+        transcription: item.transcription || undefined,
+        pending_audio_id: item.pending_audio_id || undefined,
+        category: item.category || null,
+        created_at: item.created_at || new Date().toISOString(),
+        status: item.status || 'completed'
       }))
     ))
-    
-    // Prepare feed entries as JSONB array (unified structure)
-    // Deep clone to avoid Vue reactivity issues with IndexedDB
-    const feedEntriesData = feedEntries.value.map(entry => ({
-      id: entry.id || generateUUID(),
-      type: entry.type || 'text',
-      text: entry.text || '',
-      photo_id: entry.photo_id || null,
-      transcription: entry.transcription || null,
-      pending_audio_id: entry.pending_audio_id || null,
-      category: entry.category || null,
-      created_at: entry.created_at || new Date().toISOString(),
-      status: entry.status || 'completed'
-    }))
-    
-    // Also include old comments format for backward compatibility (during migration)
-    const oldCommentsData = comments.value.map(comment => ({
-      id: comment.id || generateUUID(),
-      text: comment.text || '',
-      created_at: comment.created_at || new Date().toISOString()
-    }))
-    
-    // Merge both (new feed entries first, then old comments)
-    // Use JSON.parse(JSON.stringify()) to ensure deep serialization and remove Vue reactivity
-    const commentsData = JSON.parse(JSON.stringify([...feedEntriesData, ...oldCommentsData]))
     
     // Get existing intervention to preserve created_at and other fields
     const existingIntervention = await db.interventions.get(interventionId)
@@ -1403,8 +2052,7 @@ async function saveInterventionLocal() {
       updated_at: now,
       // Preserve synced status if editing and already synced, otherwise mark as unsynced
       synced: existingIntervention?.synced || false,
-      checklist_items: checklistItemsData,
-      comments: commentsData
+      feed_items: feedItemsData
     }
     
     // Use put() which will update if exists, create if not
@@ -1483,43 +2131,52 @@ async function syncInterventionToCloudBackground(intervention, interventionId) {
     // Sync intervention (includes checklist_items and comments as JSONB)
     await syncInterventionToCloud(intervention)
     
-    // Upload photos to Supabase Storage (offline-first: photos are already saved locally as base64)
-    // Convert base64 back to File, compress, then upload
+    // Upload photos to Supabase Storage (offline-first: photos are already saved locally as Blob)
+    // Convert Blob to File, then upload (already compressed)
     for (const photo of photos.value) {
       if (photo.url_local && !photo.url_cloud) {
         try {
           // Update feed entry status to "uploading"
-          const feedEntry = feedEntries.value.find(e => e.type === 'photo' && e.photo_id === photo.id)
-          if (feedEntry) {
-            feedEntry.status = 'uploading'
+          const feedItem = feedItems.value.find(e => e.type === 'photo' && e.photo_id === photo.id)
+          if (feedItem) {
+            feedItem.status = 'uploading'
             // Don't trigger save here - the watch will handle it, and we don't want to save during upload
           }
           
-          // Convert base64 data URL back to File object
-          const response = await fetch(photo.url_local)
-          const blob = await response.blob()
-          const originalFile = new File([blob], photo.file_name || `photo_${photo.id}.jpg`, { 
-            type: photo.file_type || 'image/jpeg' 
-          })
+          // Convert Blob to File object for upload
+          let fileToUpload
+          if (photo.url_local instanceof Blob) {
+            fileToUpload = new File([photo.url_local], photo.file_name || `photo_${photo.id}.jpg`, { 
+              type: photo.file_type || 'image/jpeg' 
+            })
+          } else if (typeof photo.url_local === 'string' && photo.url_local.startsWith('data:')) {
+            // Backward compatibility: convert data URL to File
+            const response = await fetch(photo.url_local)
+            const blob = await response.blob()
+            fileToUpload = new File([blob], photo.file_name || `photo_${photo.id}.jpg`, { 
+              type: photo.file_type || 'image/jpeg' 
+            })
+            // Compress if not already compressed
+            fileToUpload = await compressImage(fileToUpload, {
+              maxSizeMB: 1,
+              maxWidthOrHeight: 1920,
+              initialQuality: 0.8
+            })
+          } else {
+            throw new Error('Invalid photo.url_local type')
+          }
           
-          // Compress image before uploading to reduce storage and bandwidth
-          const compressedFile = await compressImage(originalFile, {
-            maxSizeMB: 1, // Max 1MB per image
-            maxWidthOrHeight: 1920, // Max dimension
-            initialQuality: 0.8 // 80% quality
-          })
+          // Upload to Supabase Storage (already compressed)
+          const cloudUrl = await uploadPhotoToCloud(fileToUpload, interventionId, photo.id)
           
-          // Upload to Supabase Storage
-          const cloudUrl = await uploadPhotoToCloud(compressedFile, interventionId, photo.id)
-          
-          // Update photo with cloud URL (keep local base64)
+          // Update photo with cloud URL (keep local Blob)
           photo.url_cloud = cloudUrl
           
           // Update in IndexedDB
           const cleanPhoto = {
             id: photo.id,
             intervention_id: interventionId,
-            url_local: photo.url_local || '', // Keep local base64
+            url_local: photo.url_local, // Keep local Blob
             url_cloud: cloudUrl,
             description: photo.description || '',
             taken_at: photo.taken_at || new Date().toISOString(),
@@ -1540,8 +2197,8 @@ async function syncInterventionToCloudBackground(intervention, interventionId) {
           await syncPhotoToCloud(cleanPhoto)
           
           // Update feed entry status to "completed"
-          if (feedEntry) {
-            feedEntry.status = 'completed'
+          if (feedItem) {
+            feedItem.status = 'completed'
             // Don't trigger save here - the watch will handle it after upload completes
           }
         } catch (error) {
@@ -1550,9 +2207,9 @@ async function syncInterventionToCloudBackground(intervention, interventionId) {
           console.warn('Error uploading photo (will retry later):', error.message || error)
           
           // Update feed entry status back to "pending"
-          const feedEntry = feedEntries.value.find(e => e.type === 'photo' && e.photo_id === photo.id)
-          if (feedEntry) {
-            feedEntry.status = 'pending'
+          const feedItemError = feedItems.value.find(e => e.type === 'photo' && e.photo_id === photo.id)
+          if (feedItemError) {
+            feedItemError.status = 'pending'
             // Don't trigger save here - the watch will handle it
           }
         }
@@ -1659,8 +2316,7 @@ watch(
     form.value.date,
     form.value.status,
     form.value.sequence_number,
-    checklistItems.value,
-    feedEntries.value,
+    feedItems.value,
     photos.value
   ],
   () => {
@@ -1702,7 +2358,7 @@ watch(
     // Update feed entry status based on photo url_cloud
     // Only update if status is not 'uploading' (to avoid interfering with upload process)
     isUpdatingPhotoStatus = true
-    for (const entry of feedEntries.value) {
+    for (const entry of feedItems.value) {
       if (entry.type === 'photo' && entry.photo_id && entry.status !== 'uploading') {
         const photo = photos.value.find(p => p.id === entry.photo_id)
         if (photo) {

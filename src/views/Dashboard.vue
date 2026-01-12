@@ -534,12 +534,8 @@ function formatDateShort(dateString) {
 
 function goToDetail(intervention) {
   if (!contextMenu.value.show) {
-    // If status is "In Progress", go to edit page, otherwise go to detail page
-    if (intervention.status === 'In Progress' || !intervention.status) {
-      router.push(`/interventions/${intervention.id}/edit`)
-    } else {
-      router.push(`/interventions/${intervention.id}`)
-    }
+    // Always go to edit form (which can be used for viewing too)
+    router.push(`/interventions/${intervention.id}/edit`)
   }
 }
 
@@ -676,20 +672,50 @@ async function handleExport() {
   try {
     const intervention = actionSheet.value.intervention
     
-    // Load checklist items and comments from JSONB
-    const checklistItems = Array.isArray(intervention.checklist_items)
-      ? intervention.checklist_items
-      : []
-    const comments = Array.isArray(intervention.comments)
-      ? intervention.comments
-      : []
+    // Load unified feed items from feed_items (with backward compatibility)
+    let feedItems = []
+    if (Array.isArray(intervention.feed_items) && intervention.feed_items.length > 0) {
+      feedItems = intervention.feed_items
+    } else {
+      // Backward compatibility: merge checklist_items and comments
+      const checklistItems = Array.isArray(intervention.checklist_items) ? intervention.checklist_items : []
+      const comments = Array.isArray(intervention.comments) ? intervention.comments : []
+      
+      // Convert checklist items to feed items (type: 'check')
+      const checkItems = checklistItems.map(item => ({
+        id: item.id || generateUUID(),
+        type: 'check',
+        text: item.label || '',
+        checked: item.checked || false,
+        photo_ids: Array.isArray(item.photo_ids) ? item.photo_ids : [],
+        category: item.category || null,
+        created_at: item.created_at || new Date().toISOString(),
+        status: 'completed'
+      }))
+      
+      // Convert comments to feed items
+      const commentItems = comments.map(entry => ({
+        id: entry.id || generateUUID(),
+        type: entry.type || 'text',
+        text: entry.text || '',
+        photo_id: entry.photo_id || null,
+        transcription: entry.transcription || null,
+        category: entry.category || null,
+        created_at: entry.created_at || new Date().toISOString(),
+        status: entry.status || 'completed'
+      }))
+      
+      feedItems = [...checkItems, ...commentItems].sort((a, b) => 
+        new Date(a.created_at) - new Date(b.created_at)
+      )
+    }
     
     // Load photos (still separate table)
     const photos = await db.photos
       .where('intervention_id').equals(intervention.id)
       .toArray()
     
-    const doc = await generatePDF(intervention, checklistItems, photos, comments)
+    const doc = await generatePDF(intervention, feedItems, photos)
     const filename = `intervention_${intervention.client_name}_${new Date(intervention.date).toISOString().split('T')[0]}.pdf`
     doc.save(filename)
   } catch (error) {

@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
 import InterventionForm from '../views/InterventionForm.vue'
-import InterventionDetail from '../views/InterventionDetail.vue'
 import Settings from '../views/Settings.vue'
 import Login from '../views/Login.vue'
 import { getCurrentSession } from '../services/auth'
@@ -30,7 +29,7 @@ const router = createRouter({
     {
       path: '/interventions/:id',
       name: 'InterventionDetail',
-      component: InterventionDetail,
+      component: InterventionForm,
       meta: { requiresAuth: true }
     },
     {

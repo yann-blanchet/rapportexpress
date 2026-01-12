@@ -185,7 +185,7 @@ const shouldShowMenu = computed(() => {
   }
   
   // Hide on intervention detail page
-  if (routeName === 'InterventionDetail' || (path.startsWith('/interventions/') && !path.includes('/new') && !path.includes('/edit'))) {
+  if (path.startsWith('/interventions/')) {
     return false
   }
   

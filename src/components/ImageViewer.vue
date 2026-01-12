@@ -33,7 +33,7 @@
       <!-- Image -->
       <div class="flex flex-col items-center max-w-full max-h-full">
         <img
-          :src="currentPhoto.url_local || currentPhoto.url_cloud"
+          :src="currentPhotoUrl"
           :alt="currentPhoto.description || 'Intervention photo'"
           class="max-w-full max-h-[85vh] object-contain"
           @click.stop
@@ -85,10 +85,43 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'close'])
 
 const currentIndex = ref(0)
+const photoUrlCache = ref(new Map())
 
 const currentPhoto = computed(() => {
   if (props.photos.length === 0) return null
   return props.photos[currentIndex.value] || props.photos[0]
+})
+
+const currentPhotoUrl = computed(() => {
+  const photo = currentPhoto.value
+  if (!photo) return ''
+  
+  // Try cloud URL first
+  if (photo.url_cloud) {
+    return photo.url_cloud
+  }
+  
+  // Check cache
+  if (photoUrlCache.value.has(photo.id)) {
+    return photoUrlCache.value.get(photo.id)
+  }
+  
+  // If it's a Blob, convert to data URL and cache
+  if (photo.url_local instanceof Blob) {
+    const reader = new FileReader()
+    reader.onload = () => {
+      photoUrlCache.value.set(photo.id, reader.result)
+    }
+    reader.readAsDataURL(photo.url_local)
+    return '' // Return empty initially, will update when conversion completes
+  }
+  
+  // If it's already a string (backward compatibility), return it
+  if (typeof photo.url_local === 'string') {
+    return photo.url_local
+  }
+  
+  return ''
 })
 
 // Watch for initial index changes

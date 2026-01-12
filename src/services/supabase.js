@@ -47,11 +47,8 @@ export async function syncInterventionToCloud(intervention) {
         updated_at: intervention.updated_at,
         user_id: userId, // Always set user_id to current authenticated user
         sequence_number: intervention.sequence_number || null,
-        checklist_items: Array.isArray(intervention.checklist_items) 
-          ? intervention.checklist_items 
-          : [],
-        comments: Array.isArray(intervention.comments) 
-          ? intervention.comments 
+        feed_items: Array.isArray(intervention.feed_items) 
+          ? intervention.feed_items 
           : []
       }, {
         onConflict: 'id' // Update if exists, insert if not
@@ -392,21 +389,55 @@ export async function syncFromCloud(db) {
           const justSynced = timeDiff >= 0 && timeDiff < 2000 // Within 2 seconds
           
           if (cloudUpdated >= localUpdated && !justSynced) {
+            // Handle backward compatibility: merge checklist_items and comments into feed_items if needed
+            let feedItems = []
+            if (Array.isArray(cloudIntervention.feed_items) && cloudIntervention.feed_items.length > 0) {
+              feedItems = cloudIntervention.feed_items
+            } else {
+              // Backward compatibility: migrate from checklist_items and comments
+              const checklistItems = Array.isArray(cloudIntervention.checklist_items) ? cloudIntervention.checklist_items : []
+              const comments = Array.isArray(cloudIntervention.comments) ? cloudIntervention.comments : []
+              
+              // Convert checklist items to feed items (type: 'check')
+              const checkItems = checklistItems.map(item => ({
+                id: item.id || crypto.randomUUID(),
+                type: 'check',
+                text: item.label || '',
+                checked: item.checked || false,
+                photo_ids: Array.isArray(item.photo_ids) ? item.photo_ids : [],
+                category: item.category || null,
+                created_at: item.created_at || new Date().toISOString(),
+                status: 'completed'
+              }))
+              
+              // Convert comments to feed items
+              const commentItems = comments.map(entry => ({
+                id: entry.id || crypto.randomUUID(),
+                type: entry.type || 'text',
+                text: entry.text || '',
+                photo_id: entry.photo_id || null,
+                transcription: entry.transcription || null,
+                category: entry.category || null,
+                created_at: entry.created_at || new Date().toISOString(),
+                status: entry.status || 'completed'
+              }))
+              
+              feedItems = [...checkItems, ...commentItems].sort((a, b) => 
+                new Date(a.created_at) - new Date(b.created_at)
+              )
+            }
+            
             await db.interventions.put({
               id: cloudIntervention.id,
               client_name: cloudIntervention.client_name,
+              sequence_number: cloudIntervention.sequence_number || null,
               date: cloudIntervention.date,
               status: cloudIntervention.status,
               created_at: cloudIntervention.created_at,
               updated_at: cloudIntervention.updated_at,
               synced: true, // Mark as synced since we got it from cloud
               user_id: cloudIntervention.user_id,
-              checklist_items: Array.isArray(cloudIntervention.checklist_items) 
-                ? cloudIntervention.checklist_items 
-                : [],
-              comments: Array.isArray(cloudIntervention.comments) 
-                ? cloudIntervention.comments 
-                : []
+              feed_items: feedItems
             })
             interventionsSynced++
           } else if (justSynced) {

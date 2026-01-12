@@ -2,7 +2,7 @@ import jsPDF from 'jspdf'
 import { getDisplayTitle } from '../utils/sequenceNumber'
 import { getSelectedTrade, getCategoryName, TRADES } from '../utils/categories'
 
-export async function generatePDF(intervention, checklistItems, photos, comments) {
+export async function generatePDF(intervention, feedItems, photos) {
   const doc = new jsPDF()
   
   // Header
@@ -32,15 +32,15 @@ export async function generatePDF(intervention, checklistItems, photos, comments
   doc.text(intervention.status || 'N/A', 50, yPos)
   yPos += 15
   
-  // Checklist (grouped by category if categories exist)
-  if (checklistItems && checklistItems.length > 0) {
+  // Unified Feed Items (grouped by category if categories exist)
+  if (feedItems && feedItems.length > 0) {
     const trade = getSelectedTrade() || TRADES.GENERAL
-    const hasCategories = checklistItems.some(item => item.category)
+    const hasCategories = feedItems.some(item => item.category)
     
     if (hasCategories) {
       // Group by category
       const groupedByCategory = {}
-      checklistItems.forEach(item => {
+      feedItems.forEach(item => {
         const categoryId = item.category || 'other'
         const categoryName = getCategoryName(categoryId, trade)
         if (!groupedByCategory[categoryName]) {
@@ -57,7 +57,7 @@ export async function generatePDF(intervention, checklistItems, photos, comments
       })
       
       doc.setFont(undefined, 'bold')
-      doc.text('Checklist:', 14, yPos)
+      doc.text('Feed Items:', 14, yPos)
       yPos += 8
       
       doc.setFont(undefined, 'normal')
@@ -79,99 +79,24 @@ export async function generatePDF(intervention, checklistItems, photos, comments
             doc.addPage()
             yPos = 20
           }
-          const checkmark = item.checked ? '✓' : '☐'
-          doc.text(`${checkmark} ${item.label}`, 30, yPos)
-          yPos += 7
-        })
-        yPos += 3 // Space between categories
-      })
-    } else {
-      // No categories - display as before
-      doc.setFont(undefined, 'bold')
-      doc.text('Checklist:', 14, yPos)
-      yPos += 8
-      
-      doc.setFont(undefined, 'normal')
-      checklistItems.forEach(item => {
-        if (yPos > 280) {
-          doc.addPage()
-          yPos = 20
-        }
-        const checkmark = item.checked ? '✓' : '☐'
-        doc.text(`${checkmark} ${item.label}`, 20, yPos)
-        yPos += 7
-      })
-    }
-    yPos += 5
-  }
-  
-  // Feed Entries / Comments (grouped by category if categories exist)
-  if (comments && comments.length > 0) {
-    // Filter to only feed entries (with type field)
-    const feedEntries = comments.filter(c => c.type)
-    const hasCategories = feedEntries.some(entry => entry.category)
-    
-    if (hasCategories && feedEntries.length > 0) {
-      const trade = getSelectedTrade() || TRADES.GENERAL
-      
-      // Group by category
-      const groupedByCategory = {}
-      feedEntries.forEach(entry => {
-        const categoryId = entry.category || 'other'
-        const categoryName = getCategoryName(categoryId, trade)
-        if (!groupedByCategory[categoryName]) {
-          groupedByCategory[categoryName] = []
-        }
-        groupedByCategory[categoryName].push(entry)
-      })
-      
-      // Sort categories (put "Other" last)
-      const sortedCategories = Object.keys(groupedByCategory).sort((a, b) => {
-        if (a === 'Other') return 1
-        if (b === 'Other') return -1
-        return a.localeCompare(b)
-      })
-      
-      if (yPos > 250) {
-        doc.addPage()
-        yPos = 20
-      }
-      
-      doc.setFont(undefined, 'bold')
-      doc.text('Feed Entries:', 14, yPos)
-      yPos += 8
-      
-      doc.setFont(undefined, 'normal')
-      sortedCategories.forEach(categoryName => {
-        if (yPos > 270) {
-          doc.addPage()
-          yPos = 20
-        }
-        
-        // Category header
-        doc.setFont(undefined, 'bold')
-        doc.text(`${categoryName}:`, 20, yPos)
-        yPos += 7
-        
-        // Entries in this category
-        doc.setFont(undefined, 'normal')
-        groupedByCategory[categoryName].forEach(entry => {
-          if (yPos > 280) {
-            doc.addPage()
-            yPos = 20
+          
+          let itemText = ''
+          if (item.type === 'check') {
+            const checkmark = item.checked ? '✓' : '☐'
+            itemText = `${checkmark} ${item.text || ''}`
+          } else if (item.type === 'text' && item.text) {
+            itemText = `📝 ${item.text}`
+          } else if (item.type === 'photo') {
+            itemText = '📷 [Photo]'
+            if (item.text) {
+              itemText += ` - ${item.text}`
+            }
+          } else if (item.type === 'audio' && item.transcription) {
+            itemText = `🎤 ${item.transcription}`
           }
           
-          let entryText = ''
-          if (entry.type === 'text' && entry.text) {
-            entryText = entry.text
-          } else if (entry.type === 'photo') {
-            entryText = '[Photo]'
-          } else if (entry.type === 'audio' && entry.transcription) {
-            entryText = entry.transcription
-          }
-          
-          if (entryText) {
-            const lines = doc.splitTextToSize(entryText, 170)
+          if (itemText) {
+            const lines = doc.splitTextToSize(itemText, 170)
             doc.text(lines, 30, yPos)
             yPos += lines.length * 7 + 3
           }
@@ -179,25 +104,40 @@ export async function generatePDF(intervention, checklistItems, photos, comments
         yPos += 3 // Space between categories
       })
     } else {
-      // No categories or old format - display as before
+      // No categories - display chronologically
       if (yPos > 250) {
         doc.addPage()
         yPos = 20
       }
       
       doc.setFont(undefined, 'bold')
-      doc.text('Comments:', 14, yPos)
+      doc.text('Feed Items:', 14, yPos)
       yPos += 8
       
       doc.setFont(undefined, 'normal')
-      comments.forEach(comment => {
+      feedItems.forEach(item => {
         if (yPos > 280) {
           doc.addPage()
           yPos = 20
         }
-        const text = comment.text || comment.transcription || ''
-        if (text) {
-          const lines = doc.splitTextToSize(text, 180)
+        
+        let itemText = ''
+        if (item.type === 'check') {
+          const checkmark = item.checked ? '✓' : '☐'
+          itemText = `${checkmark} ${item.text || ''}`
+        } else if (item.type === 'text' && item.text) {
+          itemText = `📝 ${item.text}`
+        } else if (item.type === 'photo') {
+          itemText = '📷 [Photo]'
+          if (item.text) {
+            itemText += ` - ${item.text}`
+          }
+        } else if (item.type === 'audio' && item.transcription) {
+          itemText = `🎤 ${item.transcription}`
+        }
+        
+        if (itemText) {
+          const lines = doc.splitTextToSize(itemText, 180)
           doc.text(lines, 20, yPos)
           yPos += lines.length * 7 + 3
         }

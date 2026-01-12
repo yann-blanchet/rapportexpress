@@ -50,19 +50,57 @@
         </div>
       </div>
 
-      <!-- Footer with Save Button -->
-      <div class="p-4 border-t border-base-300">
-        <button
-          @click="saveEditedImage"
-          class="btn btn-primary w-full"
-          :disabled="saving"
-        >
-          <span v-if="saving" class="loading loading-spinner loading-sm"></span>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-          </svg>
-          {{ saving ? 'Saving...' : 'Save Changes' }}
-        </button>
+      <!-- Footer -->
+      <div class="p-4 border-t border-base-300 space-y-3">
+        <!-- Category Selector (for new images) -->
+        <div v-if="isNewImage && availableCategories.length > 0">
+          <label class="label">
+            <span class="label-text font-semibold">Category</span>
+          </label>
+          <select
+            :value="selectedCategoryId"
+            @change="$emit('update:selectedCategoryId', $event.target.value)"
+            class="select select-bordered w-full"
+            :disabled="saving"
+          >
+            <option :value="null">Select a category</option>
+            <option
+              v-for="category in availableCategories"
+              :key="category.id"
+              :value="category.id"
+            >
+              {{ category.name }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3">
+          <button
+            v-if="isNewImage"
+            @click="addToFeed"
+            class="btn btn-primary flex-1"
+            :disabled="saving || !selectedCategoryId"
+          >
+            <span v-if="saving" class="loading loading-spinner loading-sm"></span>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+            {{ saving ? 'Adding...' : 'Add to Feed' }}
+          </button>
+          <button
+            v-else
+            @click="saveEditedImage"
+            class="btn btn-primary w-full"
+            :disabled="saving"
+          >
+            <span v-if="saving" class="loading loading-spinner loading-sm"></span>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            {{ saving ? 'Saving...' : 'Save Changes' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -79,10 +117,22 @@ const props = defineProps({
   photo: {
     type: Object,
     default: null
+  },
+  isNewImage: {
+    type: Boolean,
+    default: false
+  },
+  availableCategories: {
+    type: Array,
+    default: () => []
+  },
+  selectedCategoryId: {
+    type: String,
+    default: null
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'save'])
+const emit = defineEmits(['update:modelValue', 'save', 'addToFeed'])
 
 const canvasRef = ref(null)
 const canvasContainer = ref(null)
@@ -111,6 +161,17 @@ async function loadImage(photo) {
   
   ctx = canvasRef.value.getContext('2d')
   if (!ctx) return
+  
+  // Convert Blob to data URL if needed
+  let imageSrc = photo.url_local
+  if (photo.url_local instanceof Blob) {
+    const reader = new FileReader()
+    imageSrc = await new Promise((resolve, reject) => {
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = reject
+      reader.readAsDataURL(photo.url_local)
+    })
+  }
   
   // Load image
   imageObj = new Image()
@@ -154,7 +215,7 @@ async function loadImage(photo) {
       resolve()
     }
     imageObj.onerror = reject
-    imageObj.src = photo.url_local
+    imageObj.src = imageSrc
   })
   
   // Clear previous drawings
@@ -309,6 +370,23 @@ async function saveEditedImage() {
   } catch (error) {
     console.error('Error saving edited image:', error)
     alert('Error saving edited image. Please try again.')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function addToFeed() {
+  if (!props.photo || !canvasRef.value || !props.selectedCategoryId) return
+  
+  saving.value = true
+  
+  try {
+    const dataURL = canvasRef.value.toDataURL('image/png')
+    emit('addToFeed', { dataURL, categoryId: props.selectedCategoryId })
+    handleClose()
+  } catch (error) {
+    console.error('Error adding image to feed:', error)
+    alert('Error adding image to feed. Please try again.')
   } finally {
     saving.value = false
   }
