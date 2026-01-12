@@ -41,4 +41,17 @@ db.version(5).stores({
   pending_audio: 'id, intervention_id, created_at'
 })
 
+// Version 6: Removed tags and intervention_tags tables (tags functionality removed)
+db.version(6).stores({
+  interventions: 'id, client_name, date, status, created_at, updated_at, synced, user_id, sequence_number',
+  photos: 'id, intervention_id, url_local, url_cloud, description, taken_at',
+  pending_audio: 'id, intervention_id, created_at'
+}).upgrade(tx => {
+  // Delete tag tables during upgrade
+  return Promise.all([
+    tx.table('tags').clear().catch(() => {}),
+    tx.table('intervention_tags').clear().catch(() => {})
+  ])
+})
+
 export default db

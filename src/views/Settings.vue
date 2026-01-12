@@ -103,6 +103,38 @@
 
           <div class="divider"></div>
 
+          <!-- Trade Selection -->
+          <h2 class="card-title mb-4">Trade / Job Type</h2>
+          <div class="form-control mb-4">
+            <label class="label">
+              <span class="label-text">Select your trade</span>
+            </label>
+            <p class="text-sm text-base-content/70 mb-2">
+              Categories for inspection items will be based on your trade selection.
+            </p>
+            <select
+              v-model="selectedTrade"
+              @change="saveTrade"
+              class="select select-bordered w-full"
+            >
+              <option :value="null" disabled>Select a trade...</option>
+              <option
+                v-for="(name, id) in tradeNames"
+                :key="id"
+                :value="id"
+              >
+                {{ name }}
+              </option>
+            </select>
+            <div class="label">
+              <span class="label-text-alt text-base-content/60">
+                This determines which categories are available for inspection items
+              </span>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
           <!-- User Profile -->
           <h2 class="card-title mb-4">User Profile</h2>
         
@@ -283,6 +315,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { db } from '../db/indexeddb'
 import { supabase, syncInterventionToCloud, syncPhotoToCloud, syncFromCloud } from '../services/supabase'
 import SyncIndicator from '../components/SyncIndicator.vue'
+import { TRADES, TRADE_NAMES, getSelectedTrade, setSelectedTrade, loadTradeFromCloud } from '../utils/categories'
 
 const activeTab = ref('profile')
 const themeMode = ref('auto')
@@ -295,6 +328,10 @@ const profile = ref({
   name: '',
   email: ''
 })
+
+// Trade selection
+const selectedTrade = ref(null)
+const tradeNames = TRADE_NAMES
 
 const pdfSettings = ref({
   header: 'Intervention Report',
@@ -408,6 +445,19 @@ function loadProfile() {
   const savedProfile = localStorage.getItem('userProfile')
   if (savedProfile) {
     profile.value = JSON.parse(savedProfile)
+  }
+}
+
+async function loadTrade() {
+  // Try to load from cloud first (if authenticated)
+  const trade = await loadTradeFromCloud()
+  selectedTrade.value = trade || null
+}
+
+async function saveTrade() {
+  if (selectedTrade.value) {
+    await setSelectedTrade(selectedTrade.value, true) // Sync to cloud
+    alert('Trade selection saved! Categories will now be based on your trade.')
   }
 }
 
@@ -602,6 +652,7 @@ function updateOnlineStatus() {
 onMounted(() => {
   loadTheme()
   loadProfile()
+  loadTrade()
   loadPdfSettings()
   loadAutoSyncSettings()
   loadStats()

@@ -23,15 +23,6 @@
           <div class="flex-1">
             <h1 class="text-3xl font-bold">{{ getDisplayTitle(intervention) }}</h1>
             <p class="text-base-content/70 mt-1">{{ formatDate(intervention.date) }}</p>
-            <div v-if="intervention.tags && intervention.tags.length > 0" class="flex flex-wrap gap-2 mt-2">
-              <span
-                v-for="tag in intervention.tags"
-                :key="tag"
-                class="badge badge-sm badge-primary"
-              >
-                {{ tag }}
-              </span>
-            </div>
           </div>
         </div>
         <div class="flex items-center gap-2">
@@ -113,6 +104,12 @@
               :key="comment.id"
               class="p-4 bg-base-200 rounded-lg"
             >
+              <!-- Category Badge -->
+              <div v-if="comment.category" class="mb-2">
+                <span class="badge badge-sm badge-primary">
+                  {{ getCategoryDisplayName(comment.category) }}
+                </span>
+              </div>
               <p v-if="comment.text" class="whitespace-pre-wrap mb-2">{{ comment.text }}</p>
               <div v-if="comment.audio" class="mb-2">
                 <audio :src="comment.audio.url_cloud || comment.audio.url_local" controls class="w-full max-w-md"></audio>
@@ -194,6 +191,7 @@ import { deleteInterventionFromCloud } from '../services/supabase'
 import ImageViewer from '../components/ImageViewer.vue'
 import { generateUUID } from '../utils/uuid'
 import { getNextSequenceNumber, getDisplayTitle } from '../utils/sequenceNumber'
+import { getSelectedTrade, getCategoryName, TRADES } from '../utils/categories'
 
 const route = useRoute()
 const router = useRouter()
@@ -246,20 +244,6 @@ async function loadIntervention() {
       ? intervention.value.comments
       : []
     
-    // Load tags from junction table
-    const tagLinks = await db.intervention_tags
-      .where('intervention_id').equals(id)
-      .toArray()
-    
-    const tagIds = tagLinks.map(link => link.tag_id)
-    const tags = []
-    for (const tagId of tagIds) {
-      const tag = await db.tags.get(tagId)
-      if (tag) tags.push(tag)
-    }
-    
-    // Add tags to intervention for display
-    intervention.value.tags = tags.map(t => t.name)
   } catch (error) {
     console.error('[InterventionDetail] Error loading intervention:', error)
   } finally {
@@ -278,6 +262,11 @@ function formatDate(dateString) {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+function getCategoryDisplayName(categoryId) {
+  const trade = getSelectedTrade() || TRADES.GENERAL
+  return getCategoryName(categoryId, trade)
 }
 
 // Image Viewer Functions

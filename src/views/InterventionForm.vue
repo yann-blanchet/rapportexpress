@@ -141,60 +141,6 @@
               </div>
             </div>
 
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Tags</span>
-              </label>
-              <div class="flex flex-wrap gap-2 mb-2">
-                <div
-                  v-for="tag in selectedTags"
-                  :key="tag.id"
-                  class="badge badge-primary badge-lg gap-2"
-                >
-                  {{ tag.name }}
-                  <button
-                    type="button"
-                    @click="removeTag(tag.id)"
-                    class="btn btn-xs btn-circle btn-ghost p-0 h-4 w-4 min-h-0"
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-              <div class="relative" @click.stop>
-                <input
-                  type="text"
-                  v-model="tagInput"
-                  @keydown.enter.prevent="addTag"
-                  @keydown="handleTagInputKeydown"
-                  @input="filterAvailableTags"
-                  @focus="showTagSuggestions = true"
-                  @blur="handleTagInputBlur"
-                  placeholder="Type to search or create a new tag"
-                  class="input input-bordered w-full"
-                />
-                <!-- Tag Suggestions Dropdown -->
-                <div
-                  v-if="showTagSuggestions && filteredAvailableTags.length > 0"
-                  class="absolute z-10 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-                >
-                  <button
-                    v-for="tag in filteredAvailableTags"
-                    :key="tag.id"
-                    type="button"
-                    @click="selectTag(tag)"
-                    class="w-full text-left px-4 py-2 hover:bg-base-200 transition-colors"
-                  >
-                    {{ tag.name }}
-                  </button>
-                </div>
-              </div>
-              <div class="label">
-                <span class="label-text-alt text-base-content/60">
-                  Type to search existing tags or press Enter to create a new one
-                </span>
-              </div>
-            </div>
           </div>
 
           <!-- Checklist Tab -->
@@ -221,26 +167,34 @@
               <div
                 v-for="(item, index) in checklistItems"
                 :key="item.id"
-                class="flex items-center gap-2 p-2 border rounded-lg"
+                class="flex flex-col gap-2 p-2 border rounded-lg"
               >
-                <input
-                  type="checkbox"
-                  v-model="item.checked"
-                  class="checkbox checkbox-primary"
-                />
-                <input
-                  type="text"
-                  v-model="item.label"
-                  placeholder="Checklist item label"
-                  class="input input-bordered flex-1"
-                />
-                <button
-                  type="button"
-                  @click="removeChecklistItem(index)"
-                  class="btn btn-sm btn-error btn-circle"
-                >
-                  ×
-                </button>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    v-model="item.checked"
+                    class="checkbox checkbox-primary"
+                  />
+                  <input
+                    type="text"
+                    v-model="item.label"
+                    placeholder="Checklist item label"
+                    class="input input-bordered flex-1"
+                  />
+                  <button
+                    type="button"
+                    @click="removeChecklistItem(index)"
+                    class="btn btn-sm btn-error btn-circle"
+                  >
+                    ×
+                  </button>
+                </div>
+                <!-- Category Badge for Checklist Item -->
+                <div v-if="item.category" class="flex items-center gap-2">
+                  <span class="badge badge-sm badge-primary">
+                    {{ getCategoryName(item.category) }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -280,6 +234,13 @@
 
                   <!-- Entry Bubble -->
                   <div class="flex-1 bg-base-200 rounded-lg p-3 relative group">
+                    <!-- Category Badge -->
+                    <div v-if="entry.category" class="mb-2">
+                      <span class="badge badge-sm badge-primary">
+                        {{ getCategoryName(entry.category) }}
+                      </span>
+                    </div>
+                    
                     <!-- Action buttons (3-dot menu and delete) -->
                     <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <!-- Delete button -->
@@ -374,6 +335,22 @@
 
             <!-- Input Area (WhatsApp-style bottom input) -->
             <div class="border-t pt-4 space-y-3">
+              <!-- Category Selection (one-tap buttons) -->
+              <div v-if="availableCategories.length > 0" class="flex flex-wrap gap-2 mb-2">
+                <button
+                  v-for="category in availableCategories"
+                  :key="category.id"
+                  type="button"
+                  @click="selectCategory(category.id)"
+                  :class="[
+                    'btn btn-xs',
+                    selectedCategoryId === category.id ? 'btn-primary' : 'btn-outline'
+                  ]"
+                >
+                  {{ category.name }}
+                </button>
+              </div>
+              
               <!-- Text Input -->
               <textarea
                 v-model="feedTextInput"
@@ -492,13 +469,22 @@ import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { db } from '../db/indexeddb'
 import { generateUUID } from '../utils/uuid'
-import { syncInterventionToCloud, uploadPhotoToCloud, syncPhotoToCloud, syncTagsToCloud, syncInterventionTagsToCloud, deletePhotoFromCloud } from '../services/supabase'
+import { syncInterventionToCloud, uploadPhotoToCloud, syncPhotoToCloud, deletePhotoFromCloud } from '../services/supabase'
 import { compressImage } from '../utils/imageCompression'
 import ImageEditor from '../components/ImageEditor.vue'
 import ImageViewer from '../components/ImageViewer.vue'
 import AudioDictation from '../components/AudioDictation.vue'
 import SyncIndicator from '../components/SyncIndicator.vue'
 import { getNextSequenceNumber, getBaseTitleSuggestions, formatSequenceNumber, getDisplayTitle } from '../utils/sequenceNumber'
+import { 
+  getSelectedTrade, 
+  getCategoriesForTrade, 
+  getCategoryName, 
+  getLastUsedCategory, 
+  saveLastUsedCategory,
+  getDefaultCategory,
+  TRADES
+} from '../utils/categories'
 
 const route = useRoute()
 const router = useRouter()
@@ -533,11 +519,6 @@ const checklistItems = ref([])
 const photos = ref([])
 const comments = ref([]) // Old comments structure (for migration)
 const commentText = ref('') // Old comment text (for migration)
-const selectedTags = ref([]) // Tags selected for this intervention
-const availableTags = ref([]) // All available tags from database
-const filteredAvailableTags = ref([]) // Filtered tags for suggestions
-const tagInput = ref('')
-const showTagSuggestions = ref(false)
 
 // Base title autocomplete state
 const baseTitleSuggestions = ref([])
@@ -560,6 +541,10 @@ const feedAudioDictationRef = ref(null)
 const entryMenu = ref({ show: false, entry: null, x: 0, y: 0 })
 const longPressTimer = ref(null)
 const initialLoadComplete = ref(false)
+
+// Category state
+const selectedCategoryId = ref(null)
+const availableCategories = ref([])
 
 // Image Editor State
 const imageEditor = ref({
@@ -595,7 +580,8 @@ async function loadIntervention() {
               id: item.id || generateUUID(),
               label: item.label || '',
               checked: item.checked || false,
-              photo_ids: Array.isArray(item.photo_ids) ? item.photo_ids : []
+              photo_ids: Array.isArray(item.photo_ids) ? item.photo_ids : [],
+              category: item.category || null
             }))
           : []
 
@@ -629,6 +615,7 @@ async function loadIntervention() {
                   photo_id: entry.photo_id || null,
                   transcription: entry.transcription || null,
                   pending_audio_id: entry.pending_audio_id || null,
+                  category: entry.category || null,
                   created_at: entry.created_at || new Date().toISOString(),
                   status: status
                 }
@@ -663,8 +650,6 @@ async function loadIntervention() {
           }
         }
 
-        // Load tags from junction table
-        await loadInterventionTags(route.params.id)
         
         // Offline-first: Load images from local storage first
         // Then trigger background sync if online and there are unsynced items
@@ -688,15 +673,13 @@ async function loadIntervention() {
   } else {
     // New intervention - clear loaded ID
     loadedInterventionId.value = null
-    // Initialize tags for new intervention
-    selectedTags.value = []
   }
-  
-  // Load all available tags
-  await loadAvailableTags()
   
   // Load base title suggestions
   await loadBaseTitleSuggestions()
+  
+  // Load categories based on selected trade
+  loadCategories()
   
   // Listen for audio transcription events from global processor
   window.addEventListener('audioTranscribed', handleGlobalAudioTranscription)
@@ -785,16 +768,6 @@ function handleGlobalAudioTranscription(event) {
   }
 }
 
-async function loadAvailableTags() {
-  try {
-    availableTags.value = await db.tags.orderBy('name').toArray()
-    filteredAvailableTags.value = availableTags.value
-  } catch (error) {
-    console.error('Error loading available tags:', error)
-    availableTags.value = []
-    filteredAvailableTags.value = []
-  }
-}
 
 async function loadBaseTitleSuggestions() {
   try {
@@ -831,125 +804,19 @@ function selectBaseTitle(title) {
   filterBaseTitleSuggestions()
 }
 
-async function loadInterventionTags(interventionId) {
-  try {
-    // Get tag IDs linked to this intervention
-    const interventionTagLinks = await db.intervention_tags
-      .where('intervention_id').equals(interventionId)
-      .toArray()
-    
-    const tagIds = interventionTagLinks.map(link => link.tag_id)
-    
-    // Load the actual tag objects
-    const tags = []
-    for (const tagId of tagIds) {
-      const tag = await db.tags.get(tagId)
-      if (tag) {
-        tags.push(tag)
-      }
-    }
-    
-    selectedTags.value = tags
-    console.log('[InterventionForm] Loaded intervention tags:', selectedTags.value)
-  } catch (error) {
-    console.error('Error loading intervention tags:', error)
-    selectedTags.value = []
-  }
-}
-
-function handleTagInputKeydown(event) {
-  // Handle comma key (keyCode 188 or key === ',')
-  if (event.key === ',' || event.keyCode === 188) {
-    event.preventDefault()
-    addTag()
-  }
-  // Close suggestions on Escape
-  if (event.key === 'Escape') {
-    showTagSuggestions.value = false
-  }
-}
-
-function handleTagInputBlur() {
-  // Delay closing suggestions to allow clicking on them
-  window.setTimeout(() => {
-    showTagSuggestions.value = false
-  }, 200)
-}
-
-function filterAvailableTags() {
-  const query = tagInput.value.trim().toLowerCase()
-  if (!query) {
-    filteredAvailableTags.value = availableTags.value.filter(tag => 
-      !selectedTags.value.some(st => st.id === tag.id)
-    )
-  } else {
-    filteredAvailableTags.value = availableTags.value.filter(tag => 
-      tag.name.toLowerCase().includes(query) &&
-      !selectedTags.value.some(st => st.id === tag.id)
-    )
-  }
-}
-
-async function addTag() {
-  const tagName = tagInput.value.trim()
-  if (!tagName) return
-  
-  // Check if tag already exists in available tags
-  let tag = availableTags.value.find(t => t.name.toLowerCase() === tagName.toLowerCase())
-  
-  if (!tag) {
-    // Create new tag
-    const newTag = {
-      id: generateUUID(),
-      name: tagName,
-      color: '#3b82f6', // Default blue
-      created_at: new Date().toISOString(),
-      user_id: null
-    }
-    
-    try {
-      await db.tags.add(newTag)
-      availableTags.value.push(newTag)
-      tag = newTag
-      console.log('[InterventionForm] Created new tag:', tag)
-    } catch (error) {
-      console.error('Error creating tag:', error)
-      return
-    }
-  }
-  
-  // Add to selected tags if not already selected
-  if (!selectedTags.value.some(st => st.id === tag.id)) {
-    selectedTags.value.push(tag)
-    console.log('[InterventionForm] Tag added, selected tags:', selectedTags.value)
-  }
-  
-  tagInput.value = ''
-  showTagSuggestions.value = false
-  filterAvailableTags()
-}
-
-function selectTag(tag) {
-  if (!selectedTags.value.some(st => st.id === tag.id)) {
-    selectedTags.value.push(tag)
-  }
-  tagInput.value = ''
-  showTagSuggestions.value = false
-  filterAvailableTags()
-}
-
-function removeTag(tagId) {
-  selectedTags.value = selectedTags.value.filter(t => t.id !== tagId)
-  filterAvailableTags()
-}
 
 function addChecklistItem() {
+  // Get category for checklist item
+  const trade = getSelectedTrade() || TRADES.GENERAL
+  const categoryId = selectedCategoryId.value || getLastUsedCategory(trade) || getDefaultCategory(trade)
+  
   checklistItems.value.push({
     id: generateUUID(),
     intervention_id: route.params.id || null,
     label: '',
     checked: false,
-    photo_ids: []
+    photo_ids: [],
+    category: categoryId
   })
 }
 
@@ -1080,9 +947,30 @@ function scrollFeedToBottom() {
   })
 }
 
+// Category Functions
+function loadCategories() {
+  const trade = getSelectedTrade() || TRADES.GENERAL
+  availableCategories.value = getCategoriesForTrade(trade)
+  
+  // Set default category (last used or default)
+  if (!selectedCategoryId.value) {
+    selectedCategoryId.value = getLastUsedCategory(trade)
+  }
+}
+
+function selectCategory(categoryId) {
+  selectedCategoryId.value = categoryId
+  const trade = getSelectedTrade() || TRADES.GENERAL
+  saveLastUsedCategory(trade, categoryId)
+}
+
 // Feed Functions
 function addFeedEntry(type) {
   if (type === 'text' && !feedTextInput.value.trim()) return
+  
+  // Get category (use selected or default)
+  const trade = getSelectedTrade() || TRADES.GENERAL
+  const categoryId = selectedCategoryId.value || getLastUsedCategory(trade) || getDefaultCategory(trade)
   
   const entry = {
     id: generateUUID(),
@@ -1091,6 +979,7 @@ function addFeedEntry(type) {
     photo_id: null,
     transcription: null,
     pending_audio_id: null,
+    category: categoryId,
     created_at: new Date().toISOString(),
     status: 'completed'
   }
@@ -1132,11 +1021,16 @@ async function handleFeedPhotoUpload(event) {
     await db.photos.put(photo)
     photos.value.push(photo)
     
+    // Get category for photo entry
+    const trade = getSelectedTrade() || TRADES.GENERAL
+    const categoryId = selectedCategoryId.value || getLastUsedCategory(trade) || getDefaultCategory(trade)
+    
     // Create feed entry for photo
     const entry = {
       id: generateUUID(),
       type: 'photo',
       photo_id: photoId,
+      category: categoryId,
       created_at: new Date().toISOString(),
       status: navigator.onLine ? 'pending' : 'pending' // Will be uploaded during sync
     }
@@ -1160,6 +1054,10 @@ async function handleFeedPhotoUpload(event) {
 }
 
 async function handleFeedAudioRecordingStarted() {
+  // Get category for audio entry
+  const trade = getSelectedTrade() || TRADES.GENERAL
+  const categoryId = selectedCategoryId.value || getLastUsedCategory(trade) || getDefaultCategory(trade)
+  
   // Create a pending audio entry immediately when recording starts
   // The pending_audio_id will be set when the audio is saved to IndexedDB
   const entry = {
@@ -1167,6 +1065,7 @@ async function handleFeedAudioRecordingStarted() {
     type: 'audio',
     transcription: null,
     pending_audio_id: null, // Will be set when audio blob is saved
+    category: categoryId,
     created_at: new Date().toISOString(),
     status: 'pending'
   }
@@ -1215,11 +1114,16 @@ async function handleFeedAudioTranscription(transcription) {
       new Date(b.created_at) - new Date(a.created_at)
     )[0]
     
+    // Get category for audio entry
+    const trade = getSelectedTrade() || TRADES.GENERAL
+    const categoryId = selectedCategoryId.value || getLastUsedCategory(trade) || getDefaultCategory(trade)
+    
     const entry = {
       id: generateUUID(),
       type: 'audio',
       transcription: transcription,
       pending_audio_id: pendingAudio?.id || null,
+      category: categoryId,
       created_at: pendingAudio?.created_at || new Date().toISOString(),
       status: 'completed'
     }
@@ -1300,8 +1204,13 @@ function duplicateEntry(entry) {
     duplicated.pending_audio_id = null
   }
   
-  // Remove tags from duplicated entry (tags are only for interventions, not feed entries)
-  delete duplicated.tags
+  // Clean up duplicated entry
+  
+  // Preserve category if it exists
+  if (!duplicated.category) {
+    const trade = getSelectedTrade() || TRADES.GENERAL
+    duplicated.category = getLastUsedCategory(trade) || getDefaultCategory(trade)
+  }
   
   feedEntries.value.push(duplicated)
   entryMenu.value.show = false
@@ -1379,26 +1288,6 @@ function addComment() {
   commentText.value = ''
 }
 
-async function saveInterventionTags(interventionId) {
-  try {
-    // Remove all existing tag links for this intervention
-    await db.intervention_tags
-      .where('intervention_id').equals(interventionId)
-      .delete()
-    
-    // Add new tag links
-    for (const tag of selectedTags.value) {
-      await db.intervention_tags.add({
-        intervention_id: interventionId,
-        tag_id: tag.id
-      })
-    }
-    
-    console.log('[InterventionForm] Saved intervention tags:', selectedTags.value.map(t => t.name))
-  } catch (error) {
-    console.error('Error saving intervention tags:', error)
-  }
-}
 
 function formatDate(dateString) {
   if (!dateString) return ''
@@ -1447,7 +1336,8 @@ async function saveInterventionLocal() {
         id: item.id || generateUUID(),
         label: item.label || '',
         checked: item.checked || false,
-        photo_ids: Array.isArray(item.photo_ids) ? [...item.photo_ids] : []
+        photo_ids: Array.isArray(item.photo_ids) ? [...item.photo_ids] : [],
+        category: item.category || null
       }))
     ))
     
@@ -1460,6 +1350,7 @@ async function saveInterventionLocal() {
       photo_id: entry.photo_id || null,
       transcription: entry.transcription || null,
       pending_audio_id: entry.pending_audio_id || null,
+      category: entry.category || null,
       created_at: entry.created_at || new Date().toISOString(),
       status: entry.status || 'completed'
     }))
@@ -1500,7 +1391,7 @@ async function saveInterventionLocal() {
       }
     }
     
-    // Save intervention (without tags - tags are in separate table)
+    // Save intervention
     const intervention = {
       id: interventionId,
       client_name: form.value.client_name,
@@ -1525,9 +1416,6 @@ async function saveInterventionLocal() {
       console.log('[InterventionForm] Creating new intervention:', interventionId)
     }
     await db.interventions.put(intervention)
-    
-    // Save tags to junction table
-    await saveInterventionTags(interventionId)
     
     // Update pending audio records with actual intervention ID (if we had a temp ID)
     if (tempInterventionId.value && tempInterventionId.value !== interventionId) {
@@ -1671,9 +1559,6 @@ async function syncInterventionToCloudBackground(intervention, interventionId) {
       }
     }
     
-    // Sync tags to cloud
-    await syncTagsToCloud(selectedTags.value)
-    await syncInterventionTagsToCloud(interventionId, selectedTags.value)
     
     // Mark as synced and update timestamp to prevent syncFromCloud from pulling it back
     const syncCompleteTime = new Date().toISOString()
@@ -1776,8 +1661,7 @@ watch(
     form.value.sequence_number,
     checklistItems.value,
     feedEntries.value,
-    photos.value,
-    selectedTags.value
+    photos.value
   ],
   () => {
     // Don't auto-save during initial load

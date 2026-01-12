@@ -456,203 +456,103 @@ export async function syncFromCloud(db) {
   }
 }
 
-// Tag sync functions
-export async function syncTagsToCloud(tags) {
+
+// User preferences sync functions
+export async function syncTradeToCloud(trade) {
   try {
     const { data: { user } } = await supabase.auth.getUser()
-    const userId = user?.id || null
+    const userId = user?.id
     
-    if (!tags || tags.length === 0) return []
+    if (!userId) {
+      // Not authenticated - save to localStorage only
+      return null
+    }
     
-    // Check if tags table exists by trying to query it first
-    // If table doesn't exist, skip sync (user hasn't run migration yet)
+    // Check if user_preferences table exists
     try {
       const { error: checkError } = await supabase
-        .from('tags')
+        .from('user_preferences')
         .select('id')
         .limit(1)
       
       if (checkError && checkError.code === 'PGRST205') {
-        console.warn('Tags table does not exist yet. Please run supabase-tags-schema.sql migration.')
-        return []
+        console.warn('User_preferences table does not exist yet. Please run supabase-user-preferences.sql migration.')
+        return null
       }
     } catch (checkError) {
-      console.warn('Could not check tags table existence:', checkError)
-      return []
+      console.warn('Could not check user_preferences table existence:', checkError)
+      return null
     }
     
-    // First, check which tags already exist by name
-    const tagNames = tags.map(t => t.name)
-    const { data: existingTags, error: checkError } = await supabase
-      .from('tags')
-      .select('id, name')
-      .in('name', tagNames)
-    
-    if (checkError && checkError.code !== 'PGRST205') {
-      console.warn('Error fetching existing tags:', checkError)
-    }
-    
-    const existingTagsMap = new Map()
-    if (existingTags) {
-      existingTags.forEach(tag => {
-        existingTagsMap.set(tag.name.toLowerCase(), tag.id)
+    // Upsert user preferences
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .upsert({
+        user_id: userId,
+        trade: trade
+      }, {
+        onConflict: 'user_id'
       })
-    }
     
-    // Prepare tags to sync
-    // Split into existing tags (update) and new tags (insert)
-    const tagsToUpdate = []
-    const tagsToInsert = []
-    
-    tags.forEach(tag => {
-      const existingId = existingTagsMap.get(tag.name.toLowerCase())
-      if (existingId) {
-        // Tag exists - update it (use existing ID)
-        tagsToUpdate.push({
-          id: existingId,
-          name: tag.name,
-          color: tag.color || '#3b82f6',
-          user_id: userId
-          // Don't update created_at for existing tags
-        })
-      } else {
-        // New tag - insert it (use local ID)
-        tagsToInsert.push({
-          id: tag.id,
-          name: tag.name,
-          color: tag.color || '#3b82f6',
-          created_at: tag.created_at || new Date().toISOString(),
-          user_id: userId
-        })
-      }
-    })
-    
-    // Update existing tags
-    if (tagsToUpdate.length > 0) {
-      const { error: updateError } = await supabase
-        .from('tags')
-        .upsert(tagsToUpdate, { onConflict: 'id' })
-      
-      if (updateError) {
-        console.error('Error updating existing tags:', updateError)
-        throw updateError
-      }
-    }
-    
-    // Insert new tags
-    if (tagsToInsert.length > 0) {
-      const { data: insertedData, error: insertError } = await supabase
-        .from('tags')
-        .insert(tagsToInsert)
-      
-      if (insertError) {
-        // If insert fails due to name conflict (tag was created between our check and insert),
-        // fetch the existing tag and use it
-        if (insertError.code === '23505' || insertError.message?.includes('duplicate key')) {
-          console.warn('Tag name conflict during insert, fetching existing tags...')
-          const { data: existingTagsAfterError } = await supabase
-            .from('tags')
-            .select('id, name, color')
-            .in('name', tagsToInsert.map(t => t.name))
-          
-          if (existingTagsAfterError) {
-            // Update our local tags with the correct IDs
-            existingTagsAfterError.forEach(existingTag => {
-              const localTag = tagsToInsert.find(t => t.name === existingTag.name)
-              if (localTag) {
-                // Update the tag in our local array with the correct ID
-                const index = tags.findIndex(t => t.name === existingTag.name)
-                if (index >= 0) {
-                  tags[index].id = existingTag.id
-                }
-              }
-            })
-          }
-        } else {
-          throw insertError
-        }
-      }
-    }
-    
-    // Fetch all synced tags to return with correct IDs
-    const { data: syncedTags, error: finalFetchError } = await supabase
-      .from('tags')
-      .select('id, name, color')
-      .in('name', tagNames)
-    
-    if (finalFetchError) {
-      console.error('Error fetching synced tags:', finalFetchError)
-      return []
-    }
-    
-    return syncedTags || []
-    
+    if (error) throw error
+    return data
   } catch (error) {
     // If table doesn't exist, don't throw - just log and continue
     if (error.code === 'PGRST205') {
-      console.warn('Tags table does not exist yet. Tags will be synced after running migration.')
-      return []
+      console.warn('User_preferences table does not exist yet. Trade will be saved to localStorage only.')
+      return null
     }
-    console.error('Error syncing tags:', error)
-    throw error
+    console.error('Error syncing trade to cloud:', error)
+    // Don't throw - fallback to localStorage
+    return null
   }
 }
 
-export async function syncInterventionTagsToCloud(interventionId, tags) {
+export async function loadTradeFromCloud() {
   try {
-    // Check if intervention_tags table exists
+    const { data: { user } } = await supabase.auth.getUser()
+    const userId = user?.id
+    
+    if (!userId) {
+      // Not authenticated - load from localStorage
+      return null
+    }
+    
+    // Check if user_preferences table exists
     try {
       const { error: checkError } = await supabase
-        .from('intervention_tags')
-        .select('intervention_id')
+        .from('user_preferences')
+        .select('id')
         .limit(1)
       
       if (checkError && checkError.code === 'PGRST205') {
-        console.warn('Intervention_tags table does not exist yet. Please run supabase-tags-schema.sql migration.')
-        return
+        // Table doesn't exist - load from localStorage
+        return null
       }
     } catch (checkError) {
-      console.warn('Could not check intervention_tags table existence:', checkError)
-      return
+      // Table doesn't exist - load from localStorage
+      return null
     }
     
-    if (!tags || tags.length === 0) {
-      // Remove all tags for this intervention
-      const { error } = await supabase
-        .from('intervention_tags')
-        .delete()
-        .eq('intervention_id', interventionId)
-      
-      if (error && error.code !== 'PGRST205') throw error
-      return
+    // Fetch user preferences
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('trade')
+      .eq('user_id', userId)
+      .single()
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No preferences found - return null to use localStorage
+        return null
+      }
+      throw error
     }
     
-    // First, remove all existing links
-    const { error: deleteError } = await supabase
-      .from('intervention_tags')
-      .delete()
-      .eq('intervention_id', interventionId)
-    
-    if (deleteError && deleteError.code !== 'PGRST205') throw deleteError
-    
-    // Then, add new links
-    const links = tags.map(tag => ({
-      intervention_id: interventionId,
-      tag_id: tag.id
-    }))
-    
-    const { error: insertError } = await supabase
-      .from('intervention_tags')
-      .insert(links)
-    
-    if (insertError && insertError.code !== 'PGRST205') throw insertError
+    return data?.trade || null
   } catch (error) {
-    // If table doesn't exist, don't throw - just log and continue
-    if (error.code === 'PGRST205') {
-      console.warn('Intervention_tags table does not exist yet. Tags will be synced after running migration.')
-      return
-    }
-    console.error('Error syncing intervention tags:', error)
-    throw error
+    // If table doesn't exist or error, fallback to localStorage
+    console.warn('Error loading trade from cloud:', error)
+    return null
   }
 }
