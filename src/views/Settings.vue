@@ -449,15 +449,26 @@ function loadProfile() {
 }
 
 async function loadTrade() {
-  // Try to load from cloud first (if authenticated)
-  const trade = await loadTradeFromCloud()
-  selectedTrade.value = trade || null
+  try {
+    // Try to load from profile first (if authenticated)
+    const trade = await loadTradeFromCloud()
+    selectedTrade.value = trade || null
+  } catch (error) {
+    console.warn('[Settings] Error loading trade:', error)
+    // Fallback to localStorage
+    selectedTrade.value = getSelectedTrade()
+  }
 }
 
 async function saveTrade() {
   if (selectedTrade.value) {
-    await setSelectedTrade(selectedTrade.value, true) // Sync to cloud
-    alert('Trade selection saved! Categories will now be based on your trade.')
+    try {
+      await setSelectedTrade(selectedTrade.value, true) // Sync to profile
+      alert('Trade selection saved! Categories will now be based on your trade.')
+    } catch (error) {
+      console.error('[Settings] Error saving trade:', error)
+      alert('Trade saved locally. Will sync to cloud when online.')
+    }
   }
 }
 
@@ -631,16 +642,19 @@ async function exportData() {
 async function logout() {
   if (confirm('Are you sure you want to logout?')) {
     try {
-      await supabase.auth.signOut()
+      const { signOut } = await import('../services/auth')
+      await signOut()
+      // Clear local data
       localStorage.clear()
       // Clear IndexedDB
       await db.delete()
-      window.location.reload()
+      // Redirect to login
+      window.location.href = '/login'
     } catch (error) {
       console.error('Error logging out:', error)
-      // Still clear local storage even if Supabase logout fails
+      // Still clear local storage even if logout fails
       localStorage.clear()
-      window.location.reload()
+      window.location.href = '/login'
     }
   }
 }

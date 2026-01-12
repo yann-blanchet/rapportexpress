@@ -77,7 +77,7 @@ This document describes the implementation of the trade-based category system fo
 
 **Storage:**
 - **Local:** `localStorage.getItem('selectedTrade')` - immediate access, works offline
-- **Cloud:** `user_preferences` table in Supabase - synced when authenticated
+- **Cloud:** `profiles` table in Supabase - synced when authenticated
 - **Fallback:** If not authenticated, uses localStorage only
 
 ### 3. Data Model
@@ -155,7 +155,7 @@ Wiring & Cables:
    - Trade selection utilities with Supabase sync support
 
 2. **`supabase-user-preferences.sql`** (NEW)
-   - Creates `user_preferences` table in Supabase
+   - Uses `profiles` table in Supabase (created by supabase-profiles.sql)
    - Stores trade selection per user
    - Row-level security policies
 
@@ -180,7 +180,7 @@ Wiring & Cables:
 ## Database Setup
 
 **Required Migration:**
-Run `supabase-user-preferences.sql` in your Supabase SQL Editor to create the `user_preferences` table.
+Run `supabase-profiles.sql` in your Supabase SQL Editor to create the `profiles` table (which includes trade storage).
 
 This table stores:
 - `user_id` - References auth.users

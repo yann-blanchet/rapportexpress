@@ -1,3 +1,11 @@
+-- DEPRECATED: This file is no longer used
+-- Use supabase-profiles.sql instead
+-- 
+-- This table has been replaced by the profiles table
+-- If you have existing user_preferences data, run:
+-- 1. supabase-profiles.sql (migrates data)
+-- 2. supabase-drop-user-preferences.sql (drops old table)
+--
 -- Migration: Create user_preferences table for trade selection and other user settings
 -- Run this SQL in your Supabase SQL Editor
 

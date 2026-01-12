@@ -3,14 +3,39 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Configure Supabase client with session persistence
+// This ensures sessions persist across app restarts (PWA-friendly)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    // Auto-refresh tokens in the background
+    autoRefreshToken: true,
+    // Persist session in localStorage (works offline, survives app restarts)
+    persistSession: true,
+    // Detect session from URL (for OAuth redirects - not used for OTP)
+    detectSessionInUrl: false,
+    // Storage key for session (default is fine)
+    storage: window.localStorage,
+    // Storage key prefix
+    storageKey: 'sb-auth-token',
+    // Flow type: 'pkce' is more secure but 'implicit' works fine for OTP
+    flowType: 'pkce'
+  }
+})
 
 // Sync utilities
 export async function syncInterventionToCloud(intervention) {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    const userId = user?.id || null
+    // Get current authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
+    if (authError || !user) {
+      console.warn('[Sync] User not authenticated, skipping cloud sync')
+      throw new Error('User must be authenticated to sync to cloud')
+    }
+    
+    const userId = user.id
+    
+    // Ensure user_id is always set (required for RLS policies)
     const { data, error } = await supabase
       .from('interventions')
       .upsert({
@@ -20,7 +45,7 @@ export async function syncInterventionToCloud(intervention) {
         status: intervention.status,
         created_at: intervention.created_at,
         updated_at: intervention.updated_at,
-        user_id: userId,
+        user_id: userId, // Always set user_id to current authenticated user
         sequence_number: intervention.sequence_number || null,
         checklist_items: Array.isArray(intervention.checklist_items) 
           ? intervention.checklist_items 
@@ -28,6 +53,8 @@ export async function syncInterventionToCloud(intervention) {
         comments: Array.isArray(intervention.comments) 
           ? intervention.comments 
           : []
+      }, {
+        onConflict: 'id' // Update if exists, insert if not
       })
 
     if (error) throw error
@@ -457,101 +484,27 @@ export async function syncFromCloud(db) {
 }
 
 
-// User preferences sync functions
+// Profile sync functions (uses profiles table)
+// These functions are kept for backward compatibility but now use profiles table
 export async function syncTradeToCloud(trade) {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    const userId = user?.id
-    
-    if (!userId) {
-      // Not authenticated - save to localStorage only
-      return null
-    }
-    
-    // Check if user_preferences table exists
-    try {
-      const { error: checkError } = await supabase
-        .from('user_preferences')
-        .select('id')
-        .limit(1)
-      
-      if (checkError && checkError.code === 'PGRST205') {
-        console.warn('User_preferences table does not exist yet. Please run supabase-user-preferences.sql migration.')
-        return null
-      }
-    } catch (checkError) {
-      console.warn('Could not check user_preferences table existence:', checkError)
-      return null
-    }
-    
-    // Upsert user preferences
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .upsert({
-        user_id: userId,
-        trade: trade
-      }, {
-        onConflict: 'user_id'
-      })
-    
-    if (error) throw error
-    return data
+    // Use the profile service instead
+    const { updateProfile } = await import('./profile')
+    const profile = await updateProfile({ trade })
+    return profile
   } catch (error) {
-    // If table doesn't exist, don't throw - just log and continue
-    if (error.code === 'PGRST205') {
-      console.warn('User_preferences table does not exist yet. Trade will be saved to localStorage only.')
-      return null
-    }
     console.error('Error syncing trade to cloud:', error)
-    // Don't throw - fallback to localStorage
     return null
   }
 }
 
 export async function loadTradeFromCloud() {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    const userId = user?.id
-    
-    if (!userId) {
-      // Not authenticated - load from localStorage
-      return null
-    }
-    
-    // Check if user_preferences table exists
-    try {
-      const { error: checkError } = await supabase
-        .from('user_preferences')
-        .select('id')
-        .limit(1)
-      
-      if (checkError && checkError.code === 'PGRST205') {
-        // Table doesn't exist - load from localStorage
-        return null
-      }
-    } catch (checkError) {
-      // Table doesn't exist - load from localStorage
-      return null
-    }
-    
-    // Fetch user preferences
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .select('trade')
-      .eq('user_id', userId)
-      .single()
-    
-    if (error) {
-      if (error.code === 'PGRST116') {
-        // No preferences found - return null to use localStorage
-        return null
-      }
-      throw error
-    }
-    
-    return data?.trade || null
+    // Use the profile service instead
+    const { getProfileField } = await import('./profile')
+    const trade = await getProfileField('trade')
+    return trade
   } catch (error) {
-    // If table doesn't exist or error, fallback to localStorage
     console.warn('Error loading trade from cloud:', error)
     return null
   }

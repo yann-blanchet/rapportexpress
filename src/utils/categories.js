@@ -142,15 +142,29 @@ export function saveLastUsedCategory(trade, categoryId) {
 }
 
 /**
- * Get selected trade from localStorage (with optional Supabase sync)
+ * Get selected trade from profile (with localStorage fallback)
  * @returns {string|null} Selected trade ID or null
  */
 export function getSelectedTrade() {
+  // Try to get from cached profile first (synchronous check)
+  try {
+    const cached = localStorage.getItem('user_profile_cache')
+    if (cached) {
+      const profile = JSON.parse(cached)
+      if (profile?.trade) {
+        return profile.trade
+      }
+    }
+  } catch (error) {
+    // Profile cache not available or invalid - fallback to localStorage
+  }
+  
+  // Fallback to localStorage (for backward compatibility)
   return localStorage.getItem('selectedTrade')
 }
 
 /**
- * Save selected trade to localStorage and optionally sync to Supabase
+ * Save selected trade to profile and localStorage
  * @param {string} trade - Trade ID to save
  * @param {boolean} syncToCloud - Whether to sync to Supabase (default: true)
  */
@@ -159,29 +173,29 @@ export async function setSelectedTrade(trade, syncToCloud = true) {
     // Save to localStorage immediately (offline-first)
     localStorage.setItem('selectedTrade', trade)
     
-    // Sync to Supabase if requested and available
+    // Sync to Supabase profile if requested and available
     if (syncToCloud) {
       try {
         // Dynamically import to avoid circular dependencies
-        const { syncTradeToCloud } = await import('../services/supabase')
-        await syncTradeToCloud(trade)
+        const { updateProfile } = await import('../services/profile')
+        await updateProfile({ trade })
       } catch (error) {
         // If sync fails, trade is still saved in localStorage
-        console.warn('Failed to sync trade to cloud:', error)
+        console.warn('Failed to sync trade to profile:', error)
       }
     }
   }
 }
 
 /**
- * Load trade from Supabase and update localStorage
+ * Load trade from profile and update localStorage
  * Call this on app startup or after login
  */
 export async function loadTradeFromCloud() {
   try {
     // Dynamically import to avoid circular dependencies
-    const { loadTradeFromCloud } = await import('../services/supabase')
-    const cloudTrade = await loadTradeFromCloud()
+    const { getProfileField } = await import('../services/profile')
+    const cloudTrade = await getProfileField('trade')
     
     if (cloudTrade) {
       // Update localStorage with cloud value
@@ -192,7 +206,7 @@ export async function loadTradeFromCloud() {
     // No cloud value - keep localStorage value
     return getSelectedTrade()
   } catch (error) {
-    console.warn('Failed to load trade from cloud:', error)
+    console.warn('Failed to load trade from profile:', error)
     // Fallback to localStorage
     return getSelectedTrade()
   }

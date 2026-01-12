@@ -100,14 +100,74 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAutoSync } from './composables/useAutoSync'
+import { onAuthStateChange, getCurrentSession } from './services/auth'
 
 const route = useRoute()
+const router = useRouter()
 
 // Initialize automatic sync
 useAutoSync()
+
+// Handle auth state changes
+onMounted(async () => {
+  // Check initial auth state
+  const { user } = await getCurrentSession()
+  
+  // If authenticated, load profile
+  if (user) {
+    try {
+      const { loadProfile } = await import('./services/profile')
+      await loadProfile()
+      
+      // Also load trade from profile
+      const { loadTradeFromCloud } = await import('./utils/categories')
+      await loadTradeFromCloud()
+    } catch (error) {
+      console.warn('[App] Error loading profile on mount:', error)
+    }
+  }
+  
+  // If not authenticated and not on login page, redirect to login
+  if (!user && route.name !== 'Login') {
+    router.push({ name: 'Login', query: { redirect: route.fullPath } })
+  }
+  
+  // Listen for auth state changes
+  onAuthStateChange(async (user, event) => {
+    if (event === 'SIGNED_OUT') {
+      // User signed out - clear profile cache and redirect to login
+      try {
+        const { clearCache } = await import('./services/profile')
+        clearCache()
+      } catch (error) {
+        console.warn('[App] Error clearing profile cache:', error)
+      }
+      
+      if (route.name !== 'Login') {
+        router.push({ name: 'Login' })
+      }
+    } else if (event === 'SIGNED_IN' && route.name === 'Login') {
+      // User signed in - load profile
+      try {
+        const { loadProfile } = await import('./services/profile')
+        await loadProfile()
+        
+        // Load trade from profile
+        const { loadTradeFromCloud } = await import('./utils/categories')
+        await loadTradeFromCloud()
+      } catch (error) {
+        console.warn('[App] Error loading profile on sign in:', error)
+      }
+      
+      // Redirect to dashboard or original destination
+      const redirect = route.query.redirect || '/'
+      router.push(redirect)
+    }
+  })
+})
 
 // Hide bottom menu on intervention pages (create, edit, detail)
 const shouldShowMenu = computed(() => {
