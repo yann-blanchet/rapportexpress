@@ -78,126 +78,20 @@
       <div class="h-full w-full overflow-y-auto px-4 py-4" style="overscroll-behavior: contain; -webkit-overflow-scrolling: touch;">
         <!-- Feed Entries (WhatsApp-style) -->
         <div ref="feedContainer" class="space-y-4">
-              <div
-                v-for="entry in filteredFeedItems"
-                :key="entry.id"
-                class="flex flex-col gap-2"
-                @contextmenu.prevent="showEntryMenu($event, entry)"
-                @touchstart="handleEntryTouchStart(entry)"
-                @touchend="handleEntryTouchEnd"
-              >
-                <!-- Entry Content -->
-                <div class="flex items-start gap-3">
-                  <!-- Avatar/Bubble -->
-                  <div class="flex-shrink-0">
-                    <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-content text-xs">
-                      <svg v-if="entry.type === 'text'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                      <svg v-else-if="entry.type === 'photo'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <svg v-else-if="entry.type === 'audio'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                      </svg>
-                    </div>
-                  </div>
-
-                  <!-- Entry Bubble -->
-                  <div class="flex-1 bg-base-200 rounded-lg p-3 relative group">
-                    <!-- Category Badge -->
-                    <div v-if="entry.category" class="mb-2">
-                      <span class="badge badge-sm badge-primary">
-                        {{ getCategoryName(entry.category) }}
-                      </span>
-                    </div>
-                    
-                    <!-- Action buttons (3-dot menu and delete) -->
-                    <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <!-- Delete button -->
-                      <button
-                        type="button"
-                        @click.stop="deleteEntry(entry)"
-                        class="btn btn-xs btn-error btn-circle"
-                        title="Delete entry"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                      <!-- 3-dot menu -->
-                      <button
-                        type="button"
-                        @click.stop="showEntryMenu($event, entry)"
-                        class="btn btn-xs btn-ghost btn-circle"
-                        title="More options"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                        </svg>
-                      </button>
-                    </div>
-
-                    <!-- Text Entry -->
-                    <div v-if="entry.type === 'text'">
-                      <p class="text-sm whitespace-pre-wrap">{{ entry.text }}</p>
-                    </div>
-
-                    <!-- Photo Entry -->
-                    <div v-else-if="entry.type === 'photo'">
-                      <div v-if="getPhotoById(entry.photo_id)" class="relative">
-                        <img
-                          :src="getPhotoUrlSync(getPhotoById(entry.photo_id))"
-                          alt="Photo"
-                          class="w-full max-w-xs rounded-lg cursor-pointer"
-                          @click="openPhotoViewer(entry.photo_id)"
-                          @error="handleImageError($event, getPhotoById(entry.photo_id))"
-                        />
-                        <div v-if="entry.status === 'uploading'" class="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center z-10">
-                          <span class="loading loading-spinner loading-md text-white"></span>
-                        </div>
-                        <div v-if="entry.status === 'pending'" class="absolute top-2 right-2 badge badge-warning badge-sm z-10">
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Pending upload
-                        </div>
-                        <div v-if="entry.status === 'completed' && getPhotoById(entry.photo_id)?.url_cloud" class="absolute top-2 right-2 badge badge-success badge-sm z-10 opacity-70">
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                      </div>
-                      <div v-else class="text-xs text-base-content/70">Photo not found</div>
-                    </div>
-
-                    <!-- Audio Entry -->
-                    <div v-else-if="entry.type === 'audio'">
-                      <div v-if="entry.status === 'transcribing'" class="flex items-center gap-2">
-                        <span class="loading loading-spinner loading-sm"></span>
-                        <span class="text-xs">Transcribing...</span>
-                      </div>
-                      <div v-else-if="entry.status === 'pending'" class="flex items-center gap-2">
-                        <span class="badge badge-warning badge-sm">Pending transcription</span>
-                      </div>
-                      <div v-else-if="entry.transcription">
-                        <p class="text-sm">{{ entry.transcription }}</p>
-                        <div v-if="entry.pending_audio_id" class="text-xs text-base-content/70 mt-1">
-                          Audio stored locally
-                        </div>
-                      </div>
-                      <div v-else class="text-xs text-base-content/70">
-                        Processing audio...
-                      </div>
-                    </div>
-
-                    <!-- Timestamp -->
-                    <p class="text-xs text-base-content/70 mt-2">
-                      {{ formatDate(entry.created_at) }}
-                    </p>
-                  </div>
-                </div>
-              </div>
+          <FeedEntry
+            v-for="entry in filteredFeedItems"
+            :key="entry.id"
+            :entry="entry"
+            :category-name="entry.category ? getCategoryName(entry.category) : ''"
+            :photo="entry.type === 'photo' ? getPhotoById(entry.photo_id) : null"
+            :photo-url="entry.type === 'photo' && getPhotoById(entry.photo_id) ? getPhotoUrlSync(getPhotoById(entry.photo_id)) : ''"
+            @delete="deleteEntry(entry)"
+            @show-menu="showEntryMenu($event, entry)"
+            @view-photo="openPhotoViewer(entry.photo_id)"
+            @image-error="handleImageError($event, getPhotoById(entry.photo_id))"
+            @touch-start="handleEntryTouchStart(entry)"
+            @touch-end="handleEntryTouchEnd"
+          />
 
           <div v-if="filteredFeedItems.length === 0" class="text-center py-8 text-base-content/70">
             No items yet. Add checks, text, photos, or audio below.
@@ -378,6 +272,7 @@ import AudioDictation from '../components/AudioDictation.vue'
 import SyncIndicator from '../components/SyncIndicator.vue'
 import InfoEditSheet from '../components/InfoEditSheet.vue'
 import FeedItemSheet from '../components/FeedItemSheet.vue'
+import FeedEntry from '../components/FeedEntry.vue'
 import { getNextSequenceNumber, getBaseTitleSuggestions, formatSequenceNumber, getDisplayTitle } from '../utils/sequenceNumber'
 import { 
   getSelectedTrade, 
@@ -1422,7 +1317,10 @@ function handleEntryTouchEnd() {
 
 function formatDate(dateString) {
   if (!dateString) return ''
-  return new Date(dateString).toLocaleString()
+  const date = new Date(dateString)
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${hours}:${minutes}`
 }
 
 function formatDateForDisplay(dateString) {
