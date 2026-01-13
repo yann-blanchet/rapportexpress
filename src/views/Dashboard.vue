@@ -1,7 +1,7 @@
 <template>
-  <div class="pt-16">
+  <div class="fixed inset-0 overflow-hidden">
     <!-- Header with Icon - Fixed at Top -->
-    <div class="fixed top-0 left-0 right-0 z-50 safe-area-top">
+    <div class="fixed top-0 left-0 right-0 z-50 safe-area-top" ref="headerRef">
       <!-- Background with blur effect -->
       <div class="absolute inset-0 bg-base-100/95 backdrop-blur-xl border-b-2 border-base-300"></div>
       
@@ -19,155 +19,171 @@
       </div>
     </div>
 
-    <!-- Time Period Tabs - Join Component -->
-    <div class="flex justify-center mb-2">
-      <div class="join w-fit">
-        <button
-          @click="periodFilter = 'All'"
-          :class="[
-            'join-item btn btn-xs font-medium px-3 h-7',
-            periodFilter === 'All' 
-              ? 'btn-success text-white' 
-              : 'bg-base-100 text-base-content border-base-300'
-          ]"
-        >
-          All
-        </button>
-        <button
-          @click="periodFilter = 'today'"
-          :class="[
-            'join-item btn btn-xs font-medium px-3 h-7',
-            periodFilter === 'today' 
-              ? 'btn-success text-white' 
-              : 'bg-base-100 text-base-content border-base-300'
-          ]"
-        >
-          Today
-        </button>
-        <button
-          @click="periodFilter = 'thisWeek'"
-          :class="[
-            'join-item btn btn-xs font-medium px-3 h-7',
-            periodFilter === 'thisWeek' 
-              ? 'btn-success text-white' 
-              : 'bg-base-100 text-base-content border-base-300'
-          ]"
-        >
-          This Week
-        </button>
-        <button
-          @click="periodFilter = 'thisMonth'"
-          :class="[
-            'join-item btn btn-xs font-medium px-3 h-7',
-            periodFilter === 'thisMonth' 
-              ? 'btn-success text-white' 
-              : 'bg-base-100 text-base-content border-base-300'
-          ]"
-        >
-          This Month
-        </button>
-      </div>
-    </div>
-
-    <!-- Status Filter Buttons - Join Component -->
-    <div class="flex justify-center mb-3">
-      <div class="join w-fit">
-        <button
-          @click="statusFilter = 'All'"
-          :class="[
-            'join-item btn btn-xs font-medium px-3 h-7',
-            statusFilter === 'All' 
-              ? 'btn-success text-white' 
-              : 'bg-base-100 text-base-content border-base-300'
-          ]"
-        >
-          All
-        </button>
-        <button
-          @click="statusFilter = 'In Progress'"
-          :class="[
-            'join-item btn btn-xs font-medium px-3 h-7',
-            statusFilter === 'In Progress' 
-              ? 'btn-success text-white' 
-              : 'bg-base-100 text-base-content border-base-300'
-          ]"
-        >
-          In Progress
-        </button>
-        <button
-          @click="statusFilter = 'Completed'"
-          :class="[
-            'join-item btn btn-xs font-medium px-3 h-7',
-            statusFilter === 'Completed' 
-              ? 'btn-success text-white' 
-              : 'bg-base-100 text-base-content border-base-300'
-          ]"
-        >
-          Completed
-        </button>
-      </div>
-    </div>
-
-    <!-- Search Bar -->
-    <div class="mb-4">
-      <div class="relative">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        <input
-          type="text"
-          v-model="searchQuery"
-          placeholder="Search client or site..."
-          class="input input-bordered w-full pl-10"
-        />
-      </div>
-    </div>
-
-    <!-- Interventions List -->
-    <div v-if="loading" class="text-center py-8">
-      <span class="loading loading-spinner loading-lg"></span>
-    </div>
-
-    <div v-else-if="filteredInterventions.length === 0" class="card bg-base-100 shadow-xl">
-      <div class="card-body text-center">
-        <p class="text-lg">No interventions found</p>
-        <p class="text-sm text-base-content/70 mt-2">Use the + button below to create your first intervention</p>
-      </div>
-    </div>
-
-    <div v-else class="space-y-3">
-      <div
-        v-for="(intervention, index) in filteredInterventions"
-        :key="intervention.id"
-        class="bg-base-100 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer p-4"
-        @click="goToDetail(intervention)"
-        @contextmenu.prevent="showContextMenu($event, intervention)"
-        @touchstart="handleTouchStart(intervention, $event)"
-        @touchend="handleTouchEnd"
-      >
-        <div class="flex justify-between items-start gap-3">
-          <div class="flex-1 min-w-0">
-            <h3 class="font-semibold text-base mb-1">{{ getDisplayTitle(intervention) }}</h3>
-            <p class="text-sm text-base-content/70 mb-2">{{ formatDateShort(intervention.date) }}</p>
-          </div>
-          <div class="flex items-center gap-2 flex-shrink-0">
-            <span
+    <!-- Filters and Search - Fixed below header -->
+    <div 
+      class="absolute left-0 right-0 overflow-hidden bg-base-200"
+      :style="{ top: `${headerHeight}px` }"
+      ref="filtersRef"
+    >
+      <div class="px-4 py-2">
+        <!-- Time Period Tabs - Join Component -->
+        <div class="flex justify-center mb-2">
+          <div class="join w-fit">
+            <button
+              @click="periodFilter = 'All'"
               :class="[
-                'badge badge-sm font-medium border border-base-content px-3 py-2.5 h-8',
-                intervention.status === 'Completed' ? 'badge-success' :
-                'badge-warning'
+                'join-item btn btn-xs font-medium px-3 h-7',
+                periodFilter === 'All' 
+                  ? 'btn-success text-white' 
+                  : 'bg-base-100 text-base-content border-base-300'
               ]"
             >
-              {{ intervention.status || 'In Progress' }}
-            </span>
-            <button
-              @click.stop="openActionSheet(intervention)"
-              class="btn btn-ghost btn-sm btn-circle p-0 min-h-0 h-8 w-8"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-              </svg>
+              All
             </button>
+            <button
+              @click="periodFilter = 'today'"
+              :class="[
+                'join-item btn btn-xs font-medium px-3 h-7',
+                periodFilter === 'today' 
+                  ? 'btn-success text-white' 
+                  : 'bg-base-100 text-base-content border-base-300'
+              ]"
+            >
+              Today
+            </button>
+            <button
+              @click="periodFilter = 'thisWeek'"
+              :class="[
+                'join-item btn btn-xs font-medium px-3 h-7',
+                periodFilter === 'thisWeek' 
+                  ? 'btn-success text-white' 
+                  : 'bg-base-100 text-base-content border-base-300'
+              ]"
+            >
+              This Week
+            </button>
+            <button
+              @click="periodFilter = 'thisMonth'"
+              :class="[
+                'join-item btn btn-xs font-medium px-3 h-7',
+                periodFilter === 'thisMonth' 
+                  ? 'btn-success text-white' 
+                  : 'bg-base-100 text-base-content border-base-300'
+              ]"
+            >
+              This Month
+            </button>
+          </div>
+        </div>
+
+        <!-- Status Filter Buttons - Join Component -->
+        <div class="flex justify-center mb-2">
+          <div class="join w-fit">
+            <button
+              @click="statusFilter = 'All'"
+              :class="[
+                'join-item btn btn-xs font-medium px-3 h-7',
+                statusFilter === 'All' 
+                  ? 'btn-success text-white' 
+                  : 'bg-base-100 text-base-content border-base-300'
+              ]"
+            >
+              All
+            </button>
+            <button
+              @click="statusFilter = 'In Progress'"
+              :class="[
+                'join-item btn btn-xs font-medium px-3 h-7',
+                statusFilter === 'In Progress' 
+                  ? 'btn-success text-white' 
+                  : 'bg-base-100 text-base-content border-base-300'
+              ]"
+            >
+              In Progress
+            </button>
+            <button
+              @click="statusFilter = 'Completed'"
+              :class="[
+                'join-item btn btn-xs font-medium px-3 h-7',
+                statusFilter === 'Completed' 
+                  ? 'btn-success text-white' 
+                  : 'bg-base-100 text-base-content border-base-300'
+              ]"
+            >
+              Completed
+            </button>
+          </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="mb-2">
+          <div class="relative">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              v-model="searchQuery"
+              placeholder="Search client or site..."
+              class="input input-bordered w-full pl-10 input-sm"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interventions List - Scrollable -->
+    <div 
+      class="absolute left-0 right-0 overflow-hidden"
+      :style="{ top: `${headerHeight + filtersHeight}px`, bottom: `${bottomBarHeight}px` }"
+    >
+      <div class="h-full w-full overflow-y-auto px-4 py-4" style="overscroll-behavior: contain; -webkit-overflow-scrolling: touch;">
+        <div v-if="loading" class="text-center py-8">
+          <span class="loading loading-spinner loading-lg"></span>
+        </div>
+
+        <div v-else-if="filteredInterventions.length === 0" class="card bg-base-100 shadow-xl">
+          <div class="card-body text-center">
+            <p class="text-lg">No interventions found</p>
+            <p class="text-sm text-base-content/70 mt-2">Use the + button below to create your first intervention</p>
+          </div>
+        </div>
+
+        <div v-else class="space-y-3">
+          <div
+            v-for="(intervention, index) in filteredInterventions"
+            :key="intervention.id"
+            class="bg-base-100 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer p-4"
+            @click="goToDetail(intervention)"
+            @contextmenu.prevent="showContextMenu($event, intervention)"
+            @touchstart="handleTouchStart(intervention, $event)"
+            @touchend="handleTouchEnd"
+          >
+            <div class="flex justify-between items-start gap-3">
+              <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-base mb-1">{{ getDisplayTitle(intervention) }}</h3>
+                <p class="text-sm text-base-content/70 mb-2">{{ formatDateShort(intervention.date) }}</p>
+              </div>
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <span
+                  :class="[
+                    'badge badge-sm font-medium border border-base-content px-3 py-2.5 h-8',
+                    intervention.status === 'Completed' ? 'badge-success' :
+                    'badge-warning'
+                  ]"
+                >
+                  {{ intervention.status || 'In Progress' }}
+                </span>
+                <button
+                  @click.stop="openActionSheet(intervention)"
+                  class="btn btn-ghost btn-sm btn-circle p-0 min-h-0 h-8 w-8"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -332,7 +348,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, onActivated } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { db } from '../db/indexeddb'
 import SyncIndicator from '../components/SyncIndicator.vue'
@@ -375,6 +391,13 @@ const deleteConfirm = ref({
 
 const exportingPDF = ref(false)
 const deleting = ref(false)
+
+// Layout refs and heights
+const headerRef = ref(null)
+const filtersRef = ref(null)
+const headerHeight = ref(64) // Default height
+const filtersHeight = ref(180) // Default height for filters + search
+const bottomBarHeight = ref(80) // Default height for bottom menu bar
 
 // Long-press detection
 let touchTimer = null
@@ -834,11 +857,25 @@ function handleSyncCompleted(event) {
 }
 
 onMounted(() => {
+  // Prevent body scroll
+  document.body.style.overflow = 'hidden'
+  document.documentElement.style.overflow = 'hidden'
+  
   // Record mount time for grace period
   initialMountTime = Date.now()
   
   // Listen for sync completion events
   window.addEventListener('syncCompleted', handleSyncCompleted)
+  
+  // Measure header and filters heights
+  nextTick(() => {
+    if (headerRef.value) {
+      headerHeight.value = headerRef.value.offsetHeight
+    }
+    if (filtersRef.value) {
+      filtersHeight.value = filtersRef.value.offsetHeight
+    }
+  })
   
   // Load interventions on mount
   loadInterventions()
@@ -858,6 +895,10 @@ onActivated(() => {
 })
 
 onUnmounted(() => {
+  // Restore body scroll
+  document.body.style.overflow = ''
+  document.documentElement.style.overflow = ''
+  
   // Clean up event listener
   window.removeEventListener('syncCompleted', handleSyncCompleted)
   // Don't reset hasLoadedInitially - keep it true for next mount
