@@ -1,32 +1,35 @@
 <template>
-  <div>
-    <div class="flex items-center justify-between mb-6">
-      <h1 class="text-3xl font-bold">Settings</h1>
-      <SyncIndicator />
+  <div class="fixed inset-0 overflow-hidden">
+    <!-- Header with Icon - Fixed at Top (matching Dashboard design) -->
+    <div class="fixed top-0 left-0 right-0 z-50 safe-area-top bg-base-100/95 backdrop-blur-xl border-b-2 border-base-300" ref="headerRef">
+      <!-- Content -->
+      <div class="container mx-auto px-4 py-4">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-success rounded-lg flex items-center justify-center">
+              <img src="/favicon-96x96.png" alt="App Icon" class="h-6 w-6" />
+            </div>
+            <h1 class="text-2xl font-bold">Settings</h1>
+          </div>
+          <SyncIndicator />
+        </div>
+      </div>
     </div>
 
-    <!-- Tab Bar -->
-    <div class="tabs tabs-lifted mb-4">
+    <!-- Content - Scrollable between header and footer -->
+    <div 
+      class="absolute left-0 right-0 overflow-hidden"
+      :style="{ top: `${headerHeight}px`, bottom: `${bottomBarHeight}px` }"
+    >
+      <div class="h-full w-full overflow-y-auto px-4 py-4" style="overscroll-behavior: contain; -webkit-overflow-scrolling: touch;">
+        <!-- Tab Bar -->
+        <div class="tabs tabs-lifted mb-4">
       <button
         type="button"
         @click="activeTab = 'profile'"
         :class="['tab', activeTab === 'profile' ? 'tab-active' : '']"
       >
         Profile
-      </button>
-      <button
-        type="button"
-        @click="activeTab = 'pdf'"
-        :class="['tab', activeTab === 'pdf' ? 'tab-active' : '']"
-      >
-        PDF
-      </button>
-      <button
-        type="button"
-        @click="activeTab = 'sync'"
-        :class="['tab', activeTab === 'sync' ? 'tab-active' : '']"
-      >
-        Sync
       </button>
       <button
         type="button"
@@ -37,10 +40,10 @@
       </button>
       <button
         type="button"
-        @click="activeTab = 'account'"
-        :class="['tab', activeTab === 'account' ? 'tab-active' : '']"
+        @click="activeTab = 'about'"
+        :class="['tab', activeTab === 'about' ? 'tab-active' : '']"
       >
-        Account
+        About
       </button>
     </div>
 
@@ -48,74 +51,66 @@
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body">
         <!-- Profile Tab -->
-        <div v-show="activeTab === 'profile'">
+        <div v-show="activeTab === 'profile'" class="space-y-4">
           <!-- Theme Settings -->
-          <h2 class="card-title mb-4">Theme</h2>
-        
-        <div ref="dropdownContainer" class="dropdown dropdown-end">
-          <div ref="dropdownButton" tabindex="0" role="button" class="btn btn-outline w-full justify-between">
-            <span>{{ getThemeLabel(themeMode) }}</span>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
+          <div>
+            <label class="label py-1">
+              <span class="label-text font-semibold">Theme</span>
+            </label>
+            <div ref="dropdownContainer" class="dropdown dropdown-end">
+              <div ref="dropdownButton" tabindex="0" role="button" class="btn btn-outline btn-sm w-full justify-between">
+                <span>{{ getThemeLabel(themeMode) }}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              <ul ref="dropdownMenu" tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-full p-2 shadow-lg border border-base-300">
+                <li>
+                  <a 
+                    @click="setThemeMode('auto', $event)"
+                    :class="{ 'active': themeMode === 'auto' }"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    Auto (System)
+                  </a>
+                </li>
+                <li>
+                  <a 
+                    @click="setThemeMode('light', $event)"
+                    :class="{ 'active': themeMode === 'light' }"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    Light
+                  </a>
+                </li>
+                <li>
+                  <a 
+                    @click="setThemeMode('dark', $event)"
+                    :class="{ 'active': themeMode === 'dark' }"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    Dark
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
-          <ul ref="dropdownMenu" tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-full p-2 shadow-lg border border-base-300">
-            <li>
-              <a 
-                @click="setThemeMode('auto', $event)"
-                :class="{ 'active': themeMode === 'auto' }"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                Auto (System)
-              </a>
-            </li>
-            <li>
-              <a 
-                @click="setThemeMode('light', $event)"
-                :class="{ 'active': themeMode === 'light' }"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                Light
-              </a>
-            </li>
-            <li>
-              <a 
-                @click="setThemeMode('dark', $event)"
-                :class="{ 'active': themeMode === 'dark' }"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-                Dark
-              </a>
-            </li>
-          </ul>
-        </div>
-          <div class="label mt-2">
-            <span class="label-text-alt text-base-content/60">
-              Current theme: {{ currentTheme }}
-            </span>
-          </div>
-
-          <div class="divider"></div>
 
           <!-- Trade Selection -->
-          <h2 class="card-title mb-4">Trade / Job Type</h2>
-          <div class="form-control mb-4">
-            <label class="label">
-              <span class="label-text">Select your trade</span>
+          <div>
+            <label class="label py-1">
+              <span class="label-text font-semibold">Trade / Job Type</span>
             </label>
-            <p class="text-sm text-base-content/70 mb-2">
-              Categories for inspection items will be based on your trade selection.
-            </p>
             <select
               v-model="selectedTrade"
               @change="saveTrade"
-              class="select select-bordered w-full"
+              class="select select-bordered select-sm w-full"
             >
               <option :value="null" disabled>Select a trade...</option>
               <option
@@ -126,196 +121,164 @@
                 {{ name }}
               </option>
             </select>
-            <div class="label">
-              <span class="label-text-alt text-base-content/60">
-                This determines which categories are available for inspection items
-              </span>
-            </div>
           </div>
-
-          <div class="divider"></div>
 
           <!-- User Profile -->
-          <h2 class="card-title mb-4">User Profile</h2>
-        
-        <div class="form-control mb-4">
-          <label class="label">
-            <span class="label-text">Name</span>
-          </label>
-          <input
-            type="text"
-            v-model="profile.name"
-            placeholder="Your name"
-            class="input input-bordered"
-          />
-        </div>
+          <div>
+            <label class="label py-1">
+              <span class="label-text font-semibold">Name</span>
+            </label>
+            <input
+              type="text"
+              v-model="profile.name"
+              placeholder="Your name"
+              class="input input-bordered input-sm w-full"
+            />
+          </div>
 
-        <div class="form-control mb-4">
-          <label class="label">
-            <span class="label-text">Email</span>
-          </label>
-          <input
-            type="email"
-            v-model="profile.email"
-            placeholder="your.email@example.com"
-            class="input input-bordered"
-          />
-        </div>
+          <div>
+            <label class="label py-1">
+              <span class="label-text font-semibold">Email</span>
+            </label>
+            <input
+              type="email"
+              v-model="profile.email"
+              placeholder="your.email@example.com"
+              class="input input-bordered input-sm w-full"
+            />
+          </div>
 
-          <button @click="saveProfile" class="btn btn-primary">
+          <!-- PDF Settings -->
+          <div>
+            <label class="label py-1">
+              <span class="label-text font-semibold">PDF Header Text</span>
+            </label>
+            <input
+              type="text"
+              v-model="pdfSettings.header"
+              placeholder="Company name or header text"
+              class="input input-bordered input-sm w-full"
+            />
+          </div>
+
+          <div>
+            <label class="label py-1">
+              <span class="label-text font-semibold">PDF Logo URL (optional)</span>
+            </label>
+            <input
+              type="url"
+              v-model="pdfSettings.logoUrl"
+              placeholder="https://example.com/logo.png"
+              class="input input-bordered input-sm w-full"
+            />
+          </div>
+
+          <button @click="saveProfile" class="btn btn-primary btn-sm w-full">
             Save Profile
           </button>
-        </div>
 
-        <!-- PDF Tab -->
-        <div v-show="activeTab === 'pdf'">
-          <h2 class="card-title mb-4">PDF Settings</h2>
-        
-        <div class="form-control mb-4">
-          <label class="label">
-            <span class="label-text">Company/Header Text</span>
-          </label>
-          <input
-            type="text"
-            v-model="pdfSettings.header"
-            placeholder="Company name or header text"
-            class="input input-bordered"
-          />
-        </div>
+          <div class="divider my-2"></div>
 
-        <div class="form-control mb-4">
-          <label class="label">
-            <span class="label-text">Logo URL (optional)</span>
-          </label>
-          <input
-            type="url"
-            v-model="pdfSettings.logoUrl"
-            placeholder="https://example.com/logo.png"
-            class="input input-bordered"
-          />
-        </div>
-
-          <button @click="savePdfSettings" class="btn btn-primary">
-            Save PDF Settings
-          </button>
-        </div>
-
-        <!-- Sync Tab -->
-        <div v-show="activeTab === 'sync'">
-          <h2 class="card-title mb-4">Sync & Backup</h2>
-        
-        <div class="space-y-4">
-          <div>
-            <p class="mb-2">Sync Status: <span :class="isOnline ? 'text-success' : 'text-error'">{{ isOnline ? 'Online' : 'Offline' }}</span></p>
-            <button
-              @click="manualSync"
-              class="btn btn-primary"
-              :disabled="!isOnline || syncing"
-            >
-              <span v-if="syncing" class="loading loading-spinner loading-sm"></span>
-              {{ syncing ? 'Syncing...' : 'Manual Sync' }}
-            </button>
-          </div>
-
-          <div class="divider"></div>
-
-          <!-- Auto Sync Settings -->
-          <div>
-            <div class="form-control mb-4">
-              <label class="label cursor-pointer">
-                <span class="label-text">
-                  <div>
-                    <div class="font-medium">Automatic Sync</div>
-                    <div class="text-xs text-base-content/60">Automatically sync data to cloud</div>
-                  </div>
-                </span>
-                <input 
-                  type="checkbox" 
-                  class="toggle toggle-primary" 
-                  v-model="autoSyncEnabled"
-                  @change="saveAutoSyncSettings"
-                />
-              </label>
-            </div>
-
-            <div v-if="autoSyncEnabled" class="form-control mb-4">
-              <label class="label">
-                <span class="label-text">Sync Interval</span>
-              </label>
-              <select 
-                v-model.number="syncIntervalMinutes" 
-                @change="saveSyncInterval"
-                class="select select-bordered"
-              >
-                <option :value="0.5">30 seconds</option>
-                <option :value="1">1 minute</option>
-                <option :value="2">2 minutes</option>
-                <option :value="5">5 minutes</option>
-                <option :value="10">10 minutes</option>
-                <option :value="15">15 minutes</option>
-                <option :value="30">30 minutes</option>
-                <option :value="60">1 hour</option>
-              </select>
-              <div class="label">
-                <span class="label-text-alt text-base-content/60">
-                  Next sync in: {{ nextSyncIn }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div class="divider"></div>
-
-          <div>
-            <p class="mb-2">Export all data as JSON backup</p>
-            <button @click="exportData" class="btn btn-secondary">
-              Export Data
-            </button>
-          </div>
-        </div>
-        </div>
-
-        <!-- Stats Tab -->
-        <div v-show="activeTab === 'stats'">
-          <h2 class="card-title mb-4">Statistics</h2>
-        <div class="stats stats-vertical lg:stats-horizontal shadow w-full">
-          <div class="stat">
-            <div class="stat-title">Total Interventions</div>
-            <div class="stat-value">{{ stats.totalInterventions }}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-title">Completed</div>
-            <div class="stat-value text-success">{{ stats.completed }}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-title">In Progress</div>
-            <div class="stat-value text-warning">{{ stats.inProgress }}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-title">Not Synced</div>
-            <div class="stat-value text-error">{{ stats.notSynced }}</div>
-          </div>
-        </div>
-        </div>
-
-        <!-- Account Tab -->
-        <div v-show="activeTab === 'account'">
-          <h2 class="card-title mb-4">Account</h2>
-          <button @click="logout" class="btn btn-error">
+          <!-- Logout -->
+          <button @click="logout" class="btn btn-error btn-sm w-full">
             Logout
           </button>
         </div>
+
+        <!-- Stats Tab -->
+        <div v-show="activeTab === 'stats'" class="space-y-4">
+          <h2 class="card-title mb-2">Statistics</h2>
+          <div class="stats stats-vertical lg:stats-horizontal shadow w-full">
+            <div class="stat">
+              <div class="stat-title">Total Interventions</div>
+              <div class="stat-value">{{ stats.totalInterventions }}</div>
+            </div>
+            <div class="stat">
+              <div class="stat-title">Completed</div>
+              <div class="stat-value text-success">{{ stats.completed }}</div>
+            </div>
+            <div class="stat">
+              <div class="stat-title">In Progress</div>
+              <div class="stat-value text-warning">{{ stats.inProgress }}</div>
+            </div>
+            <div class="stat">
+              <div class="stat-title">Not Synced</div>
+              <div class="stat-value text-error">{{ stats.notSynced }}</div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <!-- Export Data -->
+          <div>
+            <h3 class="font-semibold text-sm mb-2">Data Export</h3>
+            <p class="text-xs text-base-content/60 mb-3">Export all your data as a JSON backup file</p>
+            <button @click="exportData" class="btn btn-secondary btn-sm w-full">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export Data as JSON
+            </button>
+          </div>
+        </div>
+
+        <!-- About Tab -->
+        <div v-show="activeTab === 'about'" class="space-y-4">
+          <h2 class="card-title mb-2">About</h2>
+          
+          <div class="space-y-3">
+            <div>
+              <div class="flex items-center gap-3 mb-3">
+                <div class="w-12 h-12 bg-success rounded-lg flex items-center justify-center">
+                  <img src="/favicon-96x96.png" alt="App Icon" class="h-8 w-8" />
+                </div>
+                <div>
+                  <h3 class="font-bold text-lg">RapportExpress</h3>
+                  <p class="text-sm text-base-content/60">Version {{ appVersion }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div>
+              <h4 class="font-semibold text-sm mb-2">Description</h4>
+              <p class="text-sm text-base-content/70">
+                A mobile-first inspection report application for creating, managing, and exporting intervention reports with photos, audio transcriptions, and compliance tracking.
+              </p>
+            </div>
+
+            <div class="divider"></div>
+
+            <div>
+              <h4 class="font-semibold text-sm mb-2">Technologies</h4>
+              <div class="flex flex-wrap gap-2">
+                <span class="badge badge-sm">Vue.js 3</span>
+                <span class="badge badge-sm">IndexedDB</span>
+                <span class="badge badge-sm">Supabase</span>
+                <span class="badge badge-sm">PWA</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { db } from '../db/indexeddb'
-import { supabase, syncInterventionToCloud, syncPhotoToCloud, syncFromCloud } from '../services/supabase'
+import { loadProfile, updateProfile } from '../services/profile'
 import SyncIndicator from '../components/SyncIndicator.vue'
 import { TRADES, TRADE_NAMES, getSelectedTrade, setSelectedTrade, loadTradeFromCloud } from '../utils/categories'
+
+// Layout refs and heights
+const headerRef = ref(null)
+const headerHeight = ref(64) // Default height
+const bottomBarHeight = ref(80) // Default height for bottom menu bar (if exists)
 
 const activeTab = ref('profile')
 const themeMode = ref('auto')
@@ -338,8 +301,6 @@ const pdfSettings = ref({
   logoUrl: ''
 })
 
-const isOnline = ref(navigator.onLine)
-const syncing = ref(false)
 const stats = ref({
   totalInterventions: 0,
   completed: 0,
@@ -347,35 +308,9 @@ const stats = ref({
   notSynced: 0
 })
 
-// Auto sync settings
-const autoSyncEnabled = ref(true)
-const syncIntervalMinutes = ref(5)
-const lastSyncTime = ref(null)
-let syncTimeInterval = null
-let themeMediaQuery = null
+const appVersion = ref('1.0.0')
 
-// Compute next sync time display
-const nextSyncIn = computed(() => {
-  if (!autoSyncEnabled.value || !lastSyncTime.value) {
-    return 'N/A'
-  }
-  
-  const intervalMs = syncIntervalMinutes.value * 60 * 1000
-  const elapsed = Date.now() - lastSyncTime.value
-  const remaining = Math.max(0, intervalMs - elapsed)
-  
-  if (remaining === 0) {
-    return 'Now'
-  }
-  
-  const minutes = Math.floor(remaining / 60000)
-  const seconds = Math.floor((remaining % 60000) / 1000)
-  
-  if (minutes > 0) {
-    return `${minutes}m ${seconds}s`
-  }
-  return `${seconds}s`
-})
+let themeMediaQuery = null
 
 function loadTheme() {
   const saved = localStorage.getItem('themeMode')
@@ -441,10 +376,38 @@ function saveTheme() {
   window.dispatchEvent(new CustomEvent('themeChanged'))
 }
 
-function loadProfile() {
+async function loadProfileSettings() {
+  // Load local profile (name, email)
   const savedProfile = localStorage.getItem('userProfile')
   if (savedProfile) {
     profile.value = JSON.parse(savedProfile)
+  }
+  
+  // Load PDF settings from profile service
+  try {
+    const userProfile = await loadProfile()
+    if (userProfile) {
+      if (userProfile.pdf_header) {
+        pdfSettings.value.header = userProfile.pdf_header
+      }
+      if (userProfile.pdf_logo_url) {
+        pdfSettings.value.logoUrl = userProfile.pdf_logo_url
+      }
+      // Also load name and email if available
+      if (userProfile.name) {
+        profile.value.name = userProfile.name
+      }
+      if (userProfile.email) {
+        profile.value.email = userProfile.email
+      }
+    }
+  } catch (error) {
+    console.warn('[Settings] Error loading profile:', error)
+    // Fallback to localStorage for PDF settings
+    const saved = localStorage.getItem('pdfSettings')
+    if (saved) {
+      pdfSettings.value = JSON.parse(saved)
+    }
   }
 }
 
@@ -472,64 +435,27 @@ async function saveTrade() {
   }
 }
 
-function saveProfile() {
+async function saveProfile() {
+  // Save local profile (name, email)
   localStorage.setItem('userProfile', JSON.stringify(profile.value))
-  alert('Profile saved!')
-}
-
-function loadPdfSettings() {
-  const saved = localStorage.getItem('pdfSettings')
-  if (saved) {
-    pdfSettings.value = JSON.parse(saved)
+  
+  // Save PDF settings and profile to cloud profile
+  try {
+    await updateProfile({
+      name: profile.value.name || null,
+      email: profile.value.email || null,
+      pdf_header: pdfSettings.value.header || null,
+      pdf_logo_url: pdfSettings.value.logoUrl || null
+    })
+    alert('Profile saved!')
+  } catch (error) {
+    console.error('[Settings] Error saving profile:', error)
+    // Still save PDF settings locally as fallback
+    localStorage.setItem('pdfSettings', JSON.stringify(pdfSettings.value))
+    alert('Profile saved locally. Will sync to cloud when online.')
   }
 }
 
-function savePdfSettings() {
-  localStorage.setItem('pdfSettings', JSON.stringify(pdfSettings.value))
-  alert('PDF settings saved!')
-}
-
-function loadAutoSyncSettings() {
-  const enabled = localStorage.getItem('autoSyncEnabled')
-  autoSyncEnabled.value = enabled !== 'false' // Default: enabled
-  
-  const interval = localStorage.getItem('syncInterval')
-  if (interval) {
-    const intervalMs = parseInt(interval, 10)
-    syncIntervalMinutes.value = intervalMs / (60 * 1000)
-  } else {
-    // Default: 5 minutes
-    syncIntervalMinutes.value = 5
-  }
-  
-  const lastSync = localStorage.getItem('lastSyncTime')
-  if (lastSync) {
-    lastSyncTime.value = parseInt(lastSync, 10)
-  }
-}
-
-function saveAutoSyncSettings() {
-  localStorage.setItem('autoSyncEnabled', autoSyncEnabled.value.toString())
-  
-  // Restart auto sync with new settings
-  if (typeof window.restartAutoSync === 'function') {
-    window.restartAutoSync()
-  }
-  
-  alert('Auto sync settings saved!')
-}
-
-function saveSyncInterval() {
-  const intervalMs = syncIntervalMinutes.value * 60 * 1000
-  localStorage.setItem('syncInterval', intervalMs.toString())
-  
-  // Restart auto sync with new interval
-  if (typeof window.restartAutoSync === 'function') {
-    window.restartAutoSync()
-  }
-  
-  alert('Sync interval updated!')
-}
 
 async function loadStats() {
   try {
@@ -545,81 +471,10 @@ async function loadStats() {
   }
 }
 
-async function manualSync() {
-  if (!isOnline.value) {
-    alert('You are offline. Please check your internet connection.')
-    return
-  }
-
-  syncing.value = true
-  // Dispatch sync started event
-  window.dispatchEvent(new CustomEvent('syncStarted'))
-  
-  try {
-    // First, pull data from Supabase
-    const fromCloud = await syncFromCloud(db)
-    
-    // Then, push local unsynced data to cloud
-    const unsynced = await db.interventions.where('synced').equals(0).toArray()
-    let syncedToCloud = 0
-    
-    for (const intervention of unsynced) {
-      try {
-        // Sync intervention (includes checklist_items and comments as JSONB)
-        await syncInterventionToCloud(intervention)
-        
-        // Sync photos (still separate table)
-        const photos = await db.photos
-          .where('intervention_id').equals(intervention.id)
-          .toArray()
-        for (const photo of photos) {
-          if (!photo.url_cloud) {
-            await syncPhotoToCloud(photo)
-          }
-        }
-        
-        intervention.synced = true
-        await db.interventions.put(intervention)
-        syncedToCloud++
-      } catch (error) {
-        console.error(`Error syncing intervention ${intervention.id}:`, error)
-      }
-    }
-    
-    // Show sync results
-    const messages = []
-    if (fromCloud.interventions > 0 || fromCloud.photos > 0) {
-      messages.push(`Synced from cloud: ${fromCloud.interventions} intervention(s), ${fromCloud.photos} photo(s)`)
-    }
-    if (syncedToCloud > 0) {
-      messages.push(`Synced to cloud: ${syncedToCloud} intervention(s)`)
-    }
-    
-    if (messages.length > 0) {
-      alert(`Sync completed!\n\n${messages.join('\n')}`)
-    } else {
-      alert('Sync completed! No changes to sync.')
-    }
-    
-    // Notify components that sync completed
-    window.dispatchEvent(new CustomEvent('syncCompleted', { 
-      detail: { fromCloud, toCloud: { interventions: syncedToCloud } } 
-    }))
-    
-    await loadStats()
-  } catch (error) {
-    console.error('Error during sync:', error)
-    alert('Error during sync. Please try again.')
-  } finally {
-    syncing.value = false
-  }
-}
-
 async function exportData() {
   try {
     const data = {
       interventions: await db.interventions.toArray(),
-      // Note: checklist_items and comments are now in interventions.checklist_items and interventions.comments
       photos: await db.photos.toArray(),
       exportDate: new Date().toISOString()
     }
@@ -638,6 +493,7 @@ async function exportData() {
     alert('Error exporting data. Please try again.')
   }
 }
+
 
 async function logout() {
   if (confirm('Are you sure you want to logout?')) {
@@ -659,42 +515,33 @@ async function logout() {
   }
 }
 
-function updateOnlineStatus() {
-  isOnline.value = navigator.onLine
-}
 
 onMounted(() => {
+  // Prevent body scroll
+  document.body.style.overflow = 'hidden'
+  document.documentElement.style.overflow = 'hidden'
+  
+  // Measure header height
+  nextTick(() => {
+    if (headerRef.value) {
+      headerHeight.value = headerRef.value.offsetHeight
+    }
+  })
+  
   loadTheme()
-  loadProfile()
+  loadProfileSettings()
   loadTrade()
-  loadPdfSettings()
-  loadAutoSyncSettings()
   loadStats()
-  window.addEventListener('online', updateOnlineStatus)
-  window.addEventListener('offline', updateOnlineStatus)
   
   // Listen for system theme changes if in auto mode
   themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
   themeMediaQuery.addEventListener('change', applyTheme)
-  
-  // Update last sync time display periodically
-  syncTimeInterval = setInterval(() => {
-    const lastSync = localStorage.getItem('lastSyncTime')
-    if (lastSync) {
-      lastSyncTime.value = parseInt(lastSync, 10)
-    }
-  }, 1000)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('online', updateOnlineStatus)
-  window.removeEventListener('offline', updateOnlineStatus)
-  
-  // Clean up interval
-  if (syncTimeInterval) {
-    clearInterval(syncTimeInterval)
-    syncTimeInterval = null
-  }
+  // Restore body scroll
+  document.body.style.overflow = ''
+  document.documentElement.style.overflow = ''
   
   // Clean up theme listener
   if (themeMediaQuery) {
