@@ -398,13 +398,12 @@ export async function syncFromCloud(db) {
               const checklistItems = Array.isArray(cloudIntervention.checklist_items) ? cloudIntervention.checklist_items : []
               const comments = Array.isArray(cloudIntervention.comments) ? cloudIntervention.comments : []
               
-              // Convert checklist items to feed items (type: 'check')
+              // Convert checklist items to feed items (type: 'text' with compliance)
               const checkItems = checklistItems.map(item => ({
                 id: item.id || crypto.randomUUID(),
-                type: 'check',
+                type: 'text',
                 text: item.label || '',
-                checked: item.checked || false,
-                photo_ids: Array.isArray(item.photo_ids) ? item.photo_ids : [],
+                compliance: item.checked === true ? 'compliant' : (item.checked === false ? 'not_compliant' : 'na'),
                 category: item.category || null,
                 created_at: item.created_at || new Date().toISOString(),
                 status: 'completed'

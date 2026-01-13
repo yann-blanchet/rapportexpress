@@ -77,12 +77,20 @@
           </div>
         </div>
 
-        <!-- Footer: Category (left) + Time + Sync Status (right) -->
+        <!-- Footer: Category + Compliance (left) + Time + Sync Status (right) -->
         <div class="flex items-center justify-between mt-1 pt-1 border-t border-base-300/50">
-          <!-- Category Badge (left) -->
-          <div>
+          <!-- Category + Compliance Badge (left) -->
+          <div class="flex items-center gap-2">
             <span v-if="entry.category" class="badge badge-xs badge-primary">
               {{ categoryName }}
+            </span>
+            <!-- Compliance Badge -->
+            <span v-if="entry.compliance && entry.compliance !== 'na'" 
+                  :class="[
+                    'badge badge-xs',
+                    entry.compliance === 'compliant' ? 'badge-success' : 'badge-error'
+                  ]">
+              {{ complianceLabel }}
             </span>
           </div>
           
@@ -139,5 +147,19 @@ const formattedTime = computed(() => {
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
   return `${hours}:${minutes}`
+})
+
+const complianceLabel = computed(() => {
+  if (!props.entry.compliance) return ''
+  switch (props.entry.compliance) {
+    case 'compliant':
+      return 'Compliant'
+    case 'not_compliant':
+      return 'Not Compliant'
+    case 'na':
+      return 'N/A'
+    default:
+      return ''
+  }
 })
 </script>

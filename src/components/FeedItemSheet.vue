@@ -55,42 +55,44 @@
             rows="6"
             ref="textAreaRef"
           ></textarea>
-        </div>
-
-        <!-- Check Input -->
-        <div v-if="type === 'check'">
-          <label class="label">
-            <span class="label-text font-semibold">Check Item</span>
-          </label>
-          <input
-            type="text"
-            :value="textInput"
-            @input="$emit('update:textInput', $event.target.value)"
-            placeholder="Enter check item text..."
-            class="input input-bordered w-full mb-4"
-            ref="textInputRef"
-          />
-          <div class="form-control">
-            <label class="label cursor-pointer justify-start gap-3">
-              <input
-                type="radio"
-                :value="true"
-                :checked="checkCompliant === true"
-                @change="$emit('update:checkCompliant', true)"
-                class="radio radio-primary"
-              />
-              <span class="label-text">Compliant</span>
+          
+          <!-- Compliance Options -->
+          <div class="mt-4">
+            <label class="label">
+              <span class="label-text font-semibold">Compliance</span>
             </label>
-            <label class="label cursor-pointer justify-start gap-3">
-              <input
-                type="radio"
-                :value="false"
-                :checked="checkCompliant === false"
-                @change="$emit('update:checkCompliant', false)"
-                class="radio radio-primary"
-              />
-              <span class="label-text">Not Compliant</span>
-            </label>
+            <div class="form-control">
+              <label class="label cursor-pointer justify-start gap-3">
+                <input
+                  type="radio"
+                  :value="'compliant'"
+                  :checked="compliance === 'compliant'"
+                  @change="$emit('update:compliance', 'compliant')"
+                  class="radio radio-primary"
+                />
+                <span class="label-text">Compliant</span>
+              </label>
+              <label class="label cursor-pointer justify-start gap-3">
+                <input
+                  type="radio"
+                  :value="'not_compliant'"
+                  :checked="compliance === 'not_compliant'"
+                  @change="$emit('update:compliance', 'not_compliant')"
+                  class="radio radio-primary"
+                />
+                <span class="label-text">Not Compliant</span>
+              </label>
+              <label class="label cursor-pointer justify-start gap-3">
+                <input
+                  type="radio"
+                  :value="'na'"
+                  :checked="compliance === 'na'"
+                  @change="$emit('update:compliance', 'na')"
+                  class="radio radio-primary"
+                />
+                <span class="label-text">N/A</span>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -117,6 +119,45 @@
               <p class="text-sm text-base-content/70">Transcribing audio...</p>
             </div>
           </div>
+          
+          <!-- Compliance Options -->
+          <div class="mt-4">
+            <label class="label">
+              <span class="label-text font-semibold">Compliance</span>
+            </label>
+            <div class="form-control">
+              <label class="label cursor-pointer justify-start gap-3">
+                <input
+                  type="radio"
+                  :value="'compliant'"
+                  :checked="compliance === 'compliant'"
+                  @change="$emit('update:compliance', 'compliant')"
+                  class="radio radio-primary"
+                />
+                <span class="label-text">Compliant</span>
+              </label>
+              <label class="label cursor-pointer justify-start gap-3">
+                <input
+                  type="radio"
+                  :value="'not_compliant'"
+                  :checked="compliance === 'not_compliant'"
+                  @change="$emit('update:compliance', 'not_compliant')"
+                  class="radio radio-primary"
+                />
+                <span class="label-text">Not Compliant</span>
+              </label>
+              <label class="label cursor-pointer justify-start gap-3">
+                <input
+                  type="radio"
+                  :value="'na'"
+                  :checked="compliance === 'na'"
+                  @change="$emit('update:compliance', 'na')"
+                  class="radio radio-primary"
+                />
+                <span class="label-text">N/A</span>
+              </label>
+            </div>
+          </div>
         </div>
 
         <!-- Image Preview (if image was selected) -->
@@ -126,6 +167,45 @@
           </label>
           <img :src="imagePreview" alt="Preview" class="w-full max-w-md rounded-lg" />
           <p class="text-sm text-base-content/70 mt-2">Image ready to add</p>
+          
+          <!-- Compliance Options -->
+          <div class="mt-4">
+            <label class="label">
+              <span class="label-text font-semibold">Compliance</span>
+            </label>
+            <div class="form-control">
+              <label class="label cursor-pointer justify-start gap-3">
+                <input
+                  type="radio"
+                  :value="'compliant'"
+                  :checked="compliance === 'compliant'"
+                  @change="$emit('update:compliance', 'compliant')"
+                  class="radio radio-primary"
+                />
+                <span class="label-text">Compliant</span>
+              </label>
+              <label class="label cursor-pointer justify-start gap-3">
+                <input
+                  type="radio"
+                  :value="'not_compliant'"
+                  :checked="compliance === 'not_compliant'"
+                  @change="$emit('update:compliance', 'not_compliant')"
+                  class="radio radio-primary"
+                />
+                <span class="label-text">Not Compliant</span>
+              </label>
+              <label class="label cursor-pointer justify-start gap-3">
+                <input
+                  type="radio"
+                  :value="'na'"
+                  :checked="compliance === 'na'"
+                  @change="$emit('update:compliance', 'na')"
+                  class="radio radio-primary"
+                />
+                <span class="label-text">N/A</span>
+              </label>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -170,7 +250,7 @@ const props = defineProps({
     type: String,
     required: false,
     default: null,
-    validator: (value) => value === null || ['text', 'photo', 'audio', 'check'].includes(value)
+    validator: (value) => value === null || ['text', 'photo', 'audio'].includes(value)
   },
   availableCategories: {
     type: Array,
@@ -184,9 +264,10 @@ const props = defineProps({
     type: String,
     default: ''
   },
-  checkCompliant: {
-    type: Boolean,
-    default: true
+  compliance: {
+    type: String,
+    default: 'na',
+    validator: (value) => ['compliant', 'not_compliant', 'na'].includes(value)
   },
   imagePreview: {
     type: String,
@@ -210,14 +291,13 @@ const emit = defineEmits([
   'update:modelValue',
   'update:selectedCategoryId',
   'update:textInput',
-  'update:checkCompliant',
+  'update:compliance',
   'save',
   'transcription',
   'recording-stopped'
 ])
 
 const textAreaRef = ref(null)
-const textInputRef = ref(null)
 const audioDictationRef = ref(null)
 
 const title = computed(() => {
@@ -229,8 +309,6 @@ const title = computed(() => {
       return 'Add Image'
     case 'audio':
       return 'Add Audio'
-    case 'check':
-      return 'Add Check'
     default:
       return 'Add Item'
   }
@@ -238,7 +316,7 @@ const title = computed(() => {
 
 const isSaveDisabled = computed(() => {
   if (!props.type) return true
-  if (props.type === 'text' || props.type === 'check') {
+  if (props.type === 'text') {
     return !props.textInput.trim()
   }
   if (props.type === 'audio') {
@@ -256,8 +334,6 @@ watch(() => props.modelValue, (newVal) => {
     nextTick(() => {
       if (props.type === 'text' && textAreaRef.value) {
         textAreaRef.value.focus()
-      } else if (props.type === 'check' && textInputRef.value) {
-        textInputRef.value.focus()
       }
     })
   }

@@ -81,18 +81,24 @@ export async function generatePDF(intervention, feedItems, photos) {
           }
           
           let itemText = ''
-          if (item.type === 'check') {
-            const checkmark = item.checked ? '✓' : '☐'
-            itemText = `${checkmark} ${item.text || ''}`
-          } else if (item.type === 'text' && item.text) {
+          if (item.type === 'text' && item.text) {
             itemText = `📝 ${item.text}`
+            if (item.compliance && item.compliance !== 'na') {
+              const complianceLabel = item.compliance === 'compliant' ? '✓ Compliant' : '✗ Not Compliant'
+              itemText += ` [${complianceLabel}]`
+            }
           } else if (item.type === 'photo') {
             itemText = '📷 [Photo]'
-            if (item.text) {
-              itemText += ` - ${item.text}`
+            if (item.compliance && item.compliance !== 'na') {
+              const complianceLabel = item.compliance === 'compliant' ? '✓ Compliant' : '✗ Not Compliant'
+              itemText += ` [${complianceLabel}]`
             }
           } else if (item.type === 'audio' && item.transcription) {
             itemText = `🎤 ${item.transcription}`
+            if (item.compliance && item.compliance !== 'na') {
+              const complianceLabel = item.compliance === 'compliant' ? '✓ Compliant' : '✗ Not Compliant'
+              itemText += ` [${complianceLabel}]`
+            }
           }
           
           if (itemText) {
@@ -122,11 +128,12 @@ export async function generatePDF(intervention, feedItems, photos) {
         }
         
         let itemText = ''
-        if (item.type === 'check') {
-          const checkmark = item.checked ? '✓' : '☐'
-          itemText = `${checkmark} ${item.text || ''}`
-        } else if (item.type === 'text' && item.text) {
+        if (item.type === 'text' && item.text) {
           itemText = `📝 ${item.text}`
+          if (item.compliance && item.compliance !== 'na') {
+            const complianceLabel = item.compliance === 'compliant' ? '✓ Compliant' : '✗ Not Compliant'
+            itemText += ` [${complianceLabel}]`
+          }
         } else if (item.type === 'photo') {
           itemText = '📷 [Photo]'
           if (item.text) {

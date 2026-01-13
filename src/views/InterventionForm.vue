@@ -210,17 +210,6 @@
             </svg>
           </button>
 
-          <!-- Check Button -->
-          <button
-            type="button"
-            @click="openFeedSheet('check')"
-            class="btn btn-ghost btn-circle"
-            title="Add Check"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </button>
         </div>
       </div>
     </div>
@@ -233,14 +222,14 @@
       :available-categories="availableCategories"
       :selected-category-id="feedSheetCategoryId"
       :text-input="feedSheetTextInput"
-      :check-compliant="feedSheetCheckCompliant"
+      :compliance="feedSheetCompliance"
       :image-preview="feedSheetImagePreview"
       :audio-transcription="feedSheetAudioTranscription"
       :is-transcribing="isTranscribingAudio"
       :intervention-id="currentInterventionId"
       @update:selected-category-id="selectCategoryForSheet"
       @update:text-input="feedSheetTextInput = $event"
-      @update:check-compliant="feedSheetCheckCompliant = $event"
+      @update:compliance="feedSheetCompliance = $event"
       @transcription="handleFeedSheetAudioTranscription"
       @recording-stopped="handleFeedSheetRecordingStopped"
       @save="saveFeedSheet"
@@ -337,11 +326,11 @@ const feedFilter = ref('all') // 'all' | 'check' | 'note' | 'photo'
 // Feed Sheet State
 const feedSheet = ref({
   show: false,
-  type: null // 'text', 'photo', 'audio', 'check'
+  type: null // 'text', 'photo', 'audio'
 })
 const feedSheetTextInput = ref('')
 const feedSheetCategoryId = ref(null)
-const feedSheetCheckCompliant = ref(true) // true = compliant, false = not compliant
+const feedSheetCompliance = ref('na') // 'compliant', 'not_compliant', 'na'
 const feedSheetImageFile = ref(null)
 const feedSheetImagePreview = ref(null)
 const feedSheetAudioTranscription = ref('')
@@ -366,7 +355,6 @@ const availableCategories = ref([])
 // Computed: Filtered feed items
 const filteredFeedItems = computed(() => {
   if (feedFilter.value === 'all') return feedItems.value
-  if (feedFilter.value === 'check') return feedItems.value.filter(item => item.type === 'check')
   if (feedFilter.value === 'note') return feedItems.value.filter(item => item.type === 'text' || item.type === 'audio')
   if (feedFilter.value === 'photo') return feedItems.value.filter(item => item.type === 'photo')
   return feedItems.value
@@ -451,9 +439,8 @@ async function loadIntervention() {
             id: item.id || generateUUID(),
             type: item.type || 'text',
             text: item.text || item.label || '', // Support both 'text' and 'label' (for migrated checks)
-            checked: item.checked,
             photo_id: item.photo_id || null,
-            photo_ids: Array.isArray(item.photo_ids) ? item.photo_ids : [],
+            compliance: item.compliance || 'na',
             transcription: item.transcription || null,
             pending_audio_id: item.pending_audio_id || null,
             category: item.category || null,
@@ -462,14 +449,13 @@ async function loadIntervention() {
           }))
         } else {
           // Backward compatibility: migrate from checklist_items and comments
-          // Migrate checklist_items to feed_items (type: 'check')
+          // Migrate checklist_items to feed_items (type: 'text' with compliance)
           if (Array.isArray(intervention.checklist_items) && intervention.checklist_items.length > 0) {
             const checkItems = intervention.checklist_items.map(item => ({
               id: item.id || generateUUID(),
-              type: 'check',
+              type: 'text',
               text: item.label || '',
-              checked: item.checked || false,
-              photo_ids: Array.isArray(item.photo_ids) ? item.photo_ids : [],
+              compliance: item.checked === true ? 'compliant' : (item.checked === false ? 'not_compliant' : (item.compliance || 'na')),
               category: item.category || null,
               created_at: item.created_at || new Date().toISOString(),
               status: 'completed'
@@ -899,7 +885,8 @@ async function handleImageAddToFeed({ dataURL, categoryId }) {
     const file = new File([blob], 'edited-image.png', { type: 'image/png' })
     
     // Upload photo and add to feed (will compress and store as Blob)
-    await handleFeedPhotoUploadFromSheet(file, categoryId)
+    // Use default compliance 'na' when adding directly from editor
+    await handleFeedPhotoUploadFromSheet(file, categoryId, 'na')
     
     // Reset editor state
     imageEditor.value.isNewImage = false
@@ -957,32 +944,6 @@ function selectCategory(categoryId) {
 }
 
 // Feed Functions
-function addCheckItem() {
-  // Get category (use selected or default)
-  const trade = getSelectedTrade() || TRADES.GENERAL
-  const categoryId = selectedCategoryId.value || getLastUsedCategory(trade) || getDefaultCategory(trade)
-  
-  const item = {
-    id: generateUUID(),
-    type: 'check',
-    text: '',
-    checked: false,
-    photo_ids: [],
-    category: categoryId,
-    created_at: new Date().toISOString(),
-    status: 'completed'
-  }
-  
-  feedItems.value.push(item)
-  
-  // Scroll to bottom after adding item
-  scrollFeedToBottom()
-  
-  // Trigger auto-save
-  if (initialLoadComplete.value) {
-    autoSave()
-  }
-}
 
 function addFeedItem(type) {
   if (type === 'text' && !feedTextInput.value.trim()) return
@@ -1360,7 +1321,7 @@ function openFeedSheet(type) {
   }
   
   feedSheetTextInput.value = ''
-  feedSheetCheckCompliant.value = true
+  feedSheetCompliance.value = 'na'
   feedSheetImageFile.value = null
   feedSheetImagePreview.value = null
   feedSheetAudioTranscription.value = ''
@@ -1372,7 +1333,7 @@ function closeFeedSheet() {
     type: null
   }
   feedSheetTextInput.value = ''
-  feedSheetCheckCompliant.value = true
+  feedSheetCompliance.value = 'na'
   feedSheetImageFile.value = null
   feedSheetImagePreview.value = null
   feedSheetAudioTranscription.value = ''
@@ -1387,42 +1348,33 @@ function selectCategoryForSheet(categoryId) {
 
 
 async function saveFeedSheet() {
-  if ((feedSheet.value.type === 'text' || feedSheet.value.type === 'check') && !feedSheetTextInput.value.trim()) return
+  if (feedSheet.value.type === 'text' && !feedSheetTextInput.value.trim()) return
   if (feedSheet.value.type === 'audio' && !feedSheetAudioTranscription.value) return
   if (feedSheet.value.type === 'photo' && !feedSheetImageFile.value) return
   
   const categoryId = feedSheetCategoryId.value
+  const compliance = feedSheetCompliance.value
   
   if (feedSheet.value.type === 'text') {
     const item = {
       id: generateUUID(),
       type: 'text',
       text: feedSheetTextInput.value.trim(),
-      category: categoryId,
-      created_at: new Date().toISOString(),
-      status: 'completed'
-    }
-    feedItems.value.push(item)
-  } else if (feedSheet.value.type === 'check') {
-    const item = {
-      id: generateUUID(),
-      type: 'check',
-      text: feedSheetTextInput.value.trim(),
-      checked: feedSheetCheckCompliant.value,
-      photo_ids: [],
+      compliance: compliance,
       category: categoryId,
       created_at: new Date().toISOString(),
       status: 'completed'
     }
     feedItems.value.push(item)
   } else if (feedSheet.value.type === 'photo' && feedSheetImageFile.value) {
-    // Handle photo upload
-    await handleFeedPhotoUploadFromSheet(feedSheetImageFile.value, categoryId)
+    // Handle photo upload with compliance
+    await handleFeedPhotoUploadFromSheet(feedSheetImageFile.value, categoryId, compliance)
   } else if (feedSheet.value.type === 'audio' && feedSheetAudioTranscription.value) {
     const item = {
       id: generateUUID(),
       type: 'audio',
       transcription: feedSheetAudioTranscription.value,
+      compliance: compliance,
       pending_audio_id: null,
       category: categoryId,
       created_at: new Date().toISOString(),
@@ -1477,7 +1429,7 @@ async function handleImagePickerSelect(event) {
   }
 }
 
-async function handleFeedPhotoUploadFromSheet(photoFile, categoryId) {
+async function handleFeedPhotoUploadFromSheet(photoFile, categoryId, compliance = 'na') {
   if (!photoFile) return
 
   const photoId = generateUUID()
@@ -1524,6 +1476,7 @@ async function handleFeedPhotoUploadFromSheet(photoFile, categoryId) {
       id: generateUUID(),
       type: 'photo',
       photo_id: photoId,
+      compliance: compliance,
       category: categoryId,
       created_at: new Date().toISOString(),
       status: navigator.onLine ? 'pending' : 'pending' // Will be uploaded during sync
@@ -1604,9 +1557,8 @@ async function saveInterventionLocal() {
         id: item.id || generateUUID(),
         type: item.type || 'text',
         text: item.text || '',
-        checked: item.type === 'check' ? (item.checked || false) : undefined,
         photo_id: item.photo_id || undefined,
-        photo_ids: item.type === 'check' ? (Array.isArray(item.photo_ids) ? [...item.photo_ids] : []) : undefined,
+        compliance: item.compliance || 'na',
         transcription: item.transcription || undefined,
         pending_audio_id: item.pending_audio_id || undefined,
         category: item.category || null,

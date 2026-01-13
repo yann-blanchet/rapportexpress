@@ -704,13 +704,12 @@ async function handleExport() {
       const checklistItems = Array.isArray(intervention.checklist_items) ? intervention.checklist_items : []
       const comments = Array.isArray(intervention.comments) ? intervention.comments : []
       
-      // Convert checklist items to feed items (type: 'check')
+      // Convert checklist items to feed items (type: 'text' with compliance)
       const checkItems = checklistItems.map(item => ({
         id: item.id || generateUUID(),
-        type: 'check',
+        type: 'text',
         text: item.label || '',
-        checked: item.checked || false,
-        photo_ids: Array.isArray(item.photo_ids) ? item.photo_ids : [],
+        compliance: item.checked === true ? 'compliant' : (item.checked === false ? 'not_compliant' : 'na'),
         category: item.category || null,
         created_at: item.created_at || new Date().toISOString(),
         status: 'completed'
