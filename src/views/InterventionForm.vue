@@ -1,12 +1,9 @@
 <template>
-  <div class="pt-16 pb-20">
+  <div class="fixed inset-0 overflow-hidden">
     <!-- Header with Icon - Fixed at Top (matching Dashboard design) -->
-    <div class="fixed top-0 left-0 right-0 z-50 safe-area-top">
-      <!-- Background with blur effect -->
-      <div class="absolute inset-0 bg-base-100/95 backdrop-blur-xl border-b-2 border-base-300"></div>
-      
+    <div class="fixed top-0 left-0 right-0 z-50 safe-area-top bg-base-100/95 backdrop-blur-xl border-b-2 border-base-300" ref="headerRef">
       <!-- Content -->
-      <div class="relative container mx-auto px-4 py-4">
+      <div class="container mx-auto px-4 py-4">
         <div class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-3 flex-1 min-w-0">
             <!-- Back Button -->
@@ -21,7 +18,7 @@
               <!-- Client Name -->
               <button
                 type="button"
-                @click="openInfoSheet('client_name')"
+                @click="openInfoSheet"
                 class="text-left flex-1 min-w-0"
               >
                 <div class="text-lg font-bold truncate">
@@ -32,7 +29,7 @@
               <!-- Date -->
               <button
                 type="button"
-                @click="openInfoSheet('date')"
+                @click="openInfoSheet"
                 class="text-left flex-shrink-0"
               >
                 <div class="text-sm font-medium">
@@ -43,7 +40,7 @@
               <!-- Status -->
               <button
                 type="button"
-                @click="openInfoSheet('status')"
+                @click="openInfoSheet"
                 class="flex-shrink-0"
               >
                 <div
@@ -73,11 +70,14 @@
       </div>
     </div>
 
-    <!-- Feed Content -->
-    <div class="card bg-base-100 shadow-xl">
-      <div class="card-body">
-            <!-- Feed Entries (WhatsApp-style) -->
-            <div ref="feedContainer" class="space-y-4 mb-4 max-h-96 overflow-y-auto">
+    <!-- Feed Content - Takes space between header and bottom bar -->
+    <div 
+      class="absolute left-0 right-0 overflow-hidden"
+      :style="{ top: `${headerHeight}px`, bottom: `${bottomBarHeight}px` }"
+    >
+      <div class="h-full w-full overflow-y-auto px-4 py-4" style="overscroll-behavior: contain; -webkit-overflow-scrolling: touch;">
+        <!-- Feed Entries (WhatsApp-style) -->
+        <div ref="feedContainer" class="space-y-4">
               <div
                 v-for="entry in filteredFeedItems"
                 :key="entry.id"
@@ -199,146 +199,25 @@
                 </div>
               </div>
 
-              <div v-if="filteredFeedItems.length === 0" class="text-center py-8 text-base-content/70">
-                No items yet. Add checks, text, photos, or audio below.
-              </div>
-            </div>
-
-        </div>
-      </div>
-
-    <!-- Info Edit Bottom Sheet -->
-    <div
-      v-if="infoSheet.show"
-      class="fixed inset-0 z-50 flex items-end"
-      @click.self="closeInfoSheet"
-    >
-      <!-- Backdrop -->
-      <div class="absolute inset-0 bg-black/50" @click="closeInfoSheet"></div>
-      
-      <!-- Sheet Content -->
-      <div class="relative w-full bg-base-100 rounded-t-3xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <!-- Handle -->
-        <div class="flex justify-center pt-3 pb-2">
-          <div class="w-12 h-1 bg-base-300 rounded-full"></div>
-        </div>
-        
-        <!-- Header -->
-        <div class="px-6 py-4 border-b border-base-300">
-          <h2 class="text-xl font-bold">{{ getInfoSheetTitle() }}</h2>
-        </div>
-        
-        <!-- Content -->
-        <div class="flex-1 overflow-y-auto px-6 py-4">
-          <!-- Client Name Edit -->
-          <div v-if="infoSheet.field === 'client_name'" class="space-y-4">
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Client / Site Name *</span>
-              </label>
-              <div class="relative" @click.stop>
-                <input
-                  type="text"
-                  v-model="form.client_name"
-                  @input="filterBaseTitleSuggestions"
-                  @focus="showBaseTitleSuggestions = true"
-                  @blur="handleBaseTitleInputBlur"
-                  required
-                  placeholder="Enter client or site name"
-                  class="input input-bordered w-full"
-                  ref="clientNameInput"
-                />
-                <!-- Base Title Suggestions Dropdown -->
-                <div
-                  v-if="showBaseTitleSuggestions && filteredBaseTitleSuggestions.length > 0"
-                  class="absolute z-10 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-                >
-                  <button
-                    v-for="title in filteredBaseTitleSuggestions"
-                    :key="title"
-                    type="button"
-                    @click="selectBaseTitle(title)"
-                    class="w-full text-left px-4 py-2 hover:bg-base-200 transition-colors"
-                  >
-                    {{ title }}
-                  </button>
-                </div>
-              </div>
-              <div class="label">
-                <span class="label-text-alt text-base-content/60">
-                  Type to see suggestions from recent reports
-                </span>
-              </div>
-            </div>
+          <div v-if="filteredFeedItems.length === 0" class="text-center py-8 text-base-content/70">
+            No items yet. Add checks, text, photos, or audio below.
           </div>
-
-          <!-- Date Edit -->
-          <div v-else-if="infoSheet.field === 'date'" class="space-y-4">
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Date & Time *</span>
-              </label>
-              <input
-                type="datetime-local"
-                v-model="form.date"
-                required
-                class="input input-bordered w-full"
-                ref="dateInput"
-              />
-            </div>
-          </div>
-
-          <!-- Status Edit -->
-          <div v-else-if="infoSheet.field === 'status'" class="space-y-4">
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Status</span>
-              </label>
-              <div class="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  @click="form.status = 'In Progress'"
-                  :class="[
-                    'badge badge-lg cursor-pointer transition-all px-4 py-2',
-                    form.status === 'In Progress' ? 'badge-warning' : 'badge-outline'
-                  ]"
-                >
-                  In Progress
-                </button>
-                <button
-                  type="button"
-                  @click="form.status = 'Completed'"
-                  :class="[
-                    'badge badge-lg cursor-pointer transition-all px-4 py-2',
-                    form.status === 'Completed' ? 'badge-success' : 'badge-outline'
-                  ]"
-                >
-                  Completed
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Footer -->
-        <div class="px-6 py-4 border-t border-base-300 flex gap-3">
-          <button
-            type="button"
-            @click="closeInfoSheet"
-            class="btn btn-ghost flex-1"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            @click="saveInfoSheet"
-            class="btn btn-primary flex-1"
-          >
-            Save
-          </button>
         </div>
       </div>
     </div>
+
+    <!-- Info Edit Bottom Sheet -->
+    <InfoEditSheet
+      v-model="infoSheet.show"
+      :form="form"
+      :filtered-suggestions="filteredBaseTitleSuggestions"
+      :show-suggestions="showBaseTitleSuggestions"
+      @update:form="handleFormUpdate"
+      @show-suggestions="showBaseTitleSuggestions = $event"
+      @hide-suggestions="handleBaseTitleInputBlur"
+      @select-title="selectBaseTitle"
+      @save="saveInfoSheet"
+    />
 
     <!-- Entry Context Menu -->
     <div
@@ -398,7 +277,7 @@
     </div>
 
     <!-- Bottom Menu Bar -->
-    <div class="fixed bottom-0 left-0 right-0 z-40 safe-area-bottom bg-base-100 border-t border-base-300">
+    <div class="fixed bottom-0 left-0 right-0 z-40 safe-area-bottom bg-base-100 border-t border-base-300" ref="bottomBarRef">
       <div class="max-w-md mx-auto px-4 py-3">
         <div class="flex items-center justify-around gap-2">
           <!-- Text Button -->
@@ -453,158 +332,25 @@
     </div>
 
     <!-- Feed Item Bottom Sheet -->
-    <div
-      v-if="feedSheet.show"
-      class="fixed inset-0 z-50 flex items-end"
-      @click.self="closeFeedSheet"
-    >
-      <!-- Backdrop -->
-      <div class="absolute inset-0 bg-black/50" @click="closeFeedSheet"></div>
-      
-      <!-- Sheet Content -->
-      <div class="relative w-full bg-base-100 rounded-t-3xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <!-- Handle -->
-        <div class="flex justify-center pt-3 pb-2">
-          <div class="w-12 h-1 bg-base-300 rounded-full"></div>
-        </div>
-        
-        <!-- Header -->
-        <div class="px-6 py-4 border-b border-base-300">
-          <h2 class="text-xl font-bold">{{ getFeedSheetTitle() }}</h2>
-        </div>
-        
-        <!-- Content -->
-        <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          <!-- Category Selection -->
-          <div v-if="availableCategories.length > 0">
-            <label class="label">
-              <span class="label-text font-semibold">Category</span>
-            </label>
-            <select
-              v-model="feedSheetCategoryId"
-              class="select select-bordered w-full"
-              @change="selectCategoryForSheet(feedSheetCategoryId)"
-            >
-              <option :value="null">Select a category</option>
-              <option
-                v-for="category in availableCategories"
-                :key="category.id"
-                :value="category.id"
-              >
-                {{ category.name }}
-              </option>
-            </select>
-          </div>
-
-          <!-- Text Input -->
-          <div v-if="feedSheet.type === 'text'">
-            <label class="label">
-              <span class="label-text font-semibold">Text</span>
-            </label>
-            <textarea
-              v-model="feedSheetTextInput"
-              placeholder="Type your message..."
-              class="textarea textarea-bordered w-full"
-              rows="6"
-              ref="feedSheetTextAreaRef"
-            ></textarea>
-          </div>
-
-          <!-- Check Input -->
-          <div v-if="feedSheet.type === 'check'">
-            <label class="label">
-              <span class="label-text font-semibold">Check Item</span>
-            </label>
-            <input
-              type="text"
-              v-model="feedSheetTextInput"
-              placeholder="Enter check item text..."
-              class="input input-bordered w-full mb-4"
-              ref="feedSheetTextInputRef"
-            />
-            <div class="form-control">
-              <label class="label cursor-pointer justify-start gap-3">
-                <input
-                  type="radio"
-                  :value="true"
-                  v-model="feedSheetCheckCompliant"
-                  class="radio radio-primary"
-                />
-                <span class="label-text">Compliant</span>
-              </label>
-              <label class="label cursor-pointer justify-start gap-3">
-                <input
-                  type="radio"
-                  :value="false"
-                  v-model="feedSheetCheckCompliant"
-                  class="radio radio-primary"
-                />
-                <span class="label-text">Not Compliant</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Audio Recording -->
-          <div v-if="feedSheet.type === 'audio'">
-            <label class="label">
-              <span class="label-text font-semibold">Audio Recording</span>
-            </label>
-            <AudioDictation
-              :intervention-id="currentInterventionId"
-              :transcribe-immediately="true"
-              @transcription="handleFeedSheetAudioTranscription"
-              @recording-stopped="handleFeedSheetRecordingStopped"
-              ref="feedSheetAudioDictationRef"
-            />
-            <!-- Transcription Status -->
-            <div v-if="feedSheetAudioTranscription" class="mt-4 p-3 bg-base-200 rounded-lg">
-              <p class="text-sm text-base-content/70 mb-1">Transcription:</p>
-              <p class="whitespace-pre-wrap text-sm">{{ feedSheetAudioTranscription }}</p>
-            </div>
-            <div v-else-if="isTranscribingAudio" class="mt-4 p-3 bg-base-200 rounded-lg">
-              <div class="flex items-center gap-2">
-                <span class="loading loading-spinner loading-sm"></span>
-                <p class="text-sm text-base-content/70">Transcribing audio...</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Image Preview (if image was selected) -->
-          <div v-if="feedSheet.type === 'photo' && feedSheetImagePreview">
-            <label class="label">
-              <span class="label-text font-semibold">Image Preview</span>
-            </label>
-            <img :src="feedSheetImagePreview" alt="Preview" class="w-full max-w-md rounded-lg" />
-            <p class="text-sm text-base-content/70 mt-2">Image ready to add</p>
-          </div>
-        </div>
-        
-        <!-- Footer with Cancel and Send -->
-        <div class="px-6 py-4 border-t border-base-300 flex gap-3">
-          <button
-            type="button"
-            @click="closeFeedSheet"
-            class="btn btn-ghost btn-circle"
-            title="Cancel"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            @click="saveFeedSheet"
-            class="btn btn-primary flex-1"
-            :disabled="(feedSheet.type === 'text' || feedSheet.type === 'check') && !feedSheetTextInput.trim() || feedSheet.type === 'audio' && !feedSheetAudioTranscription || feedSheet.type === 'photo' && !feedSheetImageFile"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
-            Add
-          </button>
-        </div>
-      </div>
-    </div>
+    <FeedItemSheet
+      v-if="feedSheet.show && feedSheet.type"
+      v-model="feedSheet.show"
+      :type="feedSheet.type"
+      :available-categories="availableCategories"
+      :selected-category-id="feedSheetCategoryId"
+      :text-input="feedSheetTextInput"
+      :check-compliant="feedSheetCheckCompliant"
+      :image-preview="feedSheetImagePreview"
+      :audio-transcription="feedSheetAudioTranscription"
+      :is-transcribing="isTranscribingAudio"
+      :intervention-id="currentInterventionId"
+      @update:selected-category-id="selectCategoryForSheet"
+      @update:text-input="feedSheetTextInput = $event"
+      @update:check-compliant="feedSheetCheckCompliant = $event"
+      @transcription="handleFeedSheetAudioTranscription"
+      @recording-stopped="handleFeedSheetRecordingStopped"
+      @save="saveFeedSheet"
+    />
 
     <!-- Hidden Image Input -->
     <input
@@ -630,6 +376,8 @@ import ImageEditor from '../components/ImageEditor.vue'
 import ImageViewer from '../components/ImageViewer.vue'
 import AudioDictation from '../components/AudioDictation.vue'
 import SyncIndicator from '../components/SyncIndicator.vue'
+import InfoEditSheet from '../components/InfoEditSheet.vue'
+import FeedItemSheet from '../components/FeedItemSheet.vue'
 import { getNextSequenceNumber, getBaseTitleSuggestions, formatSequenceNumber, getDisplayTitle } from '../utils/sequenceNumber'
 import { 
   getSelectedTrade, 
@@ -648,12 +396,13 @@ const saving = ref(false)
 const photoInput = ref(null)
 // Info Sheet State
 const infoSheet = ref({
-  show: false,
-  field: null // 'client_name', 'date', 'status'
+  show: false
 })
-const clientNameInput = ref(null)
-const dateInput = ref(null)
 const audioDictationRef = ref(null)
+const headerRef = ref(null)
+const bottomBarRef = ref(null)
+const headerHeight = ref(64) // Default height in pixels (16 * 4 = 64px for pt-16)
+const bottomBarHeight = ref(80) // Default height in pixels (20 * 4 = 80px for pb-20)
 
 // Computed intervention ID for dictation (create temp ID for new interventions)
 const currentInterventionId = computed(() => {
@@ -702,9 +451,6 @@ const feedSheetImageFile = ref(null)
 const feedSheetImagePreview = ref(null)
 const feedSheetAudioTranscription = ref('')
 const isTranscribingAudio = ref(false)
-const feedSheetTextAreaRef = ref(null)
-const feedSheetTextInputRef = ref(null)
-const feedSheetAudioDictationRef = ref(null)
 const feedPhotoInput = ref(null)
 
 // Auto-save state
@@ -1041,6 +787,11 @@ function handleBaseTitleInputBlur() {
 function selectBaseTitle(title) {
   form.value.client_name = title
   showBaseTitleSuggestions.value = false
+  filterBaseTitleSuggestions()
+}
+
+function handleFormUpdate(updatedForm) {
+  form.value = updatedForm
   filterBaseTitleSuggestions()
 }
 
@@ -1684,26 +1435,12 @@ function formatDateForDisplay(dateString) {
 }
 
 // Info Sheet Functions
-function openInfoSheet(field) {
-  infoSheet.value = {
-    show: true,
-    field: field
-  }
-  // Focus the input after sheet opens
-  nextTick(() => {
-    if (field === 'client_name' && clientNameInput.value) {
-      clientNameInput.value.focus()
-    } else if (field === 'date' && dateInput.value) {
-      dateInput.value.focus()
-    }
-  })
+function openInfoSheet() {
+  infoSheet.value.show = true
 }
 
 function closeInfoSheet() {
-  infoSheet.value = {
-    show: false,
-    field: null
-  }
+  infoSheet.value.show = false
 }
 
 function saveInfoSheet() {
@@ -1712,19 +1449,6 @@ function saveInfoSheet() {
     autoSave()
   }
   closeInfoSheet()
-}
-
-function getInfoSheetTitle() {
-  switch (infoSheet.value.field) {
-    case 'client_name':
-      return 'Edit Client / Site Name'
-    case 'date':
-      return 'Edit Date & Time'
-    case 'status':
-      return 'Edit Status'
-    default:
-      return 'Edit Information'
-  }
 }
 
 // Feed Sheet Functions
@@ -1742,15 +1466,6 @@ function openFeedSheet(type) {
   feedSheetImageFile.value = null
   feedSheetImagePreview.value = null
   feedSheetAudioTranscription.value = ''
-  
-  // Focus input after sheet opens
-  nextTick(() => {
-    if (type === 'text' && feedSheetTextAreaRef.value) {
-      feedSheetTextAreaRef.value.focus()
-    } else if (type === 'check' && feedSheetTextInputRef.value) {
-      feedSheetTextInputRef.value.focus()
-    }
-  })
 }
 
 function closeFeedSheet() {
@@ -1769,22 +1484,9 @@ function selectCategoryForSheet(categoryId) {
   feedSheetCategoryId.value = categoryId
   const trade = getSelectedTrade() || TRADES.GENERAL
   saveLastUsedCategory(trade, categoryId)
+  selectedCategoryId.value = categoryId
 }
 
-function getFeedSheetTitle() {
-  switch (feedSheet.value.type) {
-    case 'text':
-      return 'Add Text'
-    case 'photo':
-      return 'Add Image'
-    case 'audio':
-      return 'Add Audio'
-    case 'check':
-      return 'Add Check'
-    default:
-      return 'Add Item'
-  }
-}
 
 async function saveFeedSheet() {
   if ((feedSheet.value.type === 'text' || feedSheet.value.type === 'check') && !feedSheetTextInput.value.trim()) return
@@ -2379,10 +2081,28 @@ watch(
 )
 
 onMounted(() => {
+  // Prevent body scroll
+  document.body.style.overflow = 'hidden'
+  document.documentElement.style.overflow = 'hidden'
+  
   loadIntervention()
+  
+  // Measure header and bottom bar heights
+  nextTick(() => {
+    if (headerRef.value) {
+      headerHeight.value = headerRef.value.offsetHeight
+    }
+    if (bottomBarRef.value) {
+      bottomBarHeight.value = bottomBarRef.value.offsetHeight
+    }
+  })
 })
 
 onUnmounted(() => {
+  // Restore body scroll
+  document.body.style.overflow = ''
+  document.documentElement.style.overflow = ''
+  
   // Clear any pending auto-save
   if (autoSaveTimeout.value) {
     clearTimeout(autoSaveTimeout.value)
