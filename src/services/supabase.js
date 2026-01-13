@@ -47,6 +47,8 @@ export async function syncInterventionToCloud(intervention) {
         updated_at: intervention.updated_at,
         user_id: userId, // Always set user_id to current authenticated user
         sequence_number: intervention.sequence_number || null,
+        observations: intervention.observations || '',
+        conclusion: intervention.conclusion || '',
         feed_items: Array.isArray(intervention.feed_items) 
           ? intervention.feed_items 
           : []
@@ -432,6 +434,8 @@ export async function syncFromCloud(db) {
               sequence_number: cloudIntervention.sequence_number || null,
               date: cloudIntervention.date,
               status: cloudIntervention.status,
+              observations: cloudIntervention.observations || '',
+              conclusion: cloudIntervention.conclusion || '',
               created_at: cloudIntervention.created_at,
               updated_at: cloudIntervention.updated_at,
               synced: true, // Mark as synced since we got it from cloud

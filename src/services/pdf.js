@@ -153,6 +153,36 @@ export async function generatePDF(intervention, feedItems, photos) {
     yPos += 5
   }
   
+  // Observations
+  if (intervention.observations) {
+    if (yPos > 270) {
+      doc.addPage()
+      yPos = 20
+    }
+    doc.setFont(undefined, 'bold')
+    doc.text('Observations:', 14, yPos)
+    yPos += 8
+    doc.setFont(undefined, 'normal')
+    const observationsLines = doc.splitTextToSize(intervention.observations, 170)
+    doc.text(observationsLines, 14, yPos)
+    yPos += observationsLines.length * 7 + 10
+  }
+  
+  // Conclusion
+  if (intervention.conclusion) {
+    if (yPos > 270) {
+      doc.addPage()
+      yPos = 20
+    }
+    doc.setFont(undefined, 'bold')
+    doc.text('Conclusion:', 14, yPos)
+    yPos += 8
+    doc.setFont(undefined, 'normal')
+    const conclusionLines = doc.splitTextToSize(intervention.conclusion, 170)
+    doc.text(conclusionLines, 14, yPos)
+    yPos += conclusionLines.length * 7 + 10
+  }
+  
   // Photos note
   if (photos && photos.length > 0) {
     if (yPos > 270) {

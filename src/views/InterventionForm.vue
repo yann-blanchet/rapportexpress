@@ -210,6 +210,18 @@
             </svg>
           </button>
 
+          <!-- Finaliser Button -->
+          <button
+            type="button"
+            @click="openFinalizationForm"
+            class="btn btn-ghost btn-circle"
+            title="Finaliser"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+          </button>
+
         </div>
       </div>
     </div>
@@ -235,6 +247,19 @@
       @save="saveFeedSheet"
     />
 
+    <!-- Finalization Form -->
+    <FinalizationForm
+      v-model="finalizationForm.show"
+      :observations="form.observations"
+      :conclusion="form.conclusion"
+      :generating-pdf="generatingPDF"
+      :finalizing="finalizing"
+      @update:observations="form.observations = $event"
+      @update:conclusion="form.conclusion = $event"
+      @generate-pdf="handleGeneratePDF"
+      @finalize="handleFinalize"
+    />
+
     <!-- Hidden Image Input -->
     <input
       type="file"
@@ -253,6 +278,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { db } from '../db/indexeddb'
 import { generateUUID } from '../utils/uuid'
 import { syncInterventionToCloud, uploadPhotoToCloud, syncPhotoToCloud, deletePhotoFromCloud } from '../services/supabase'
+import { generatePDF } from '../services/pdf'
 import { compressImage } from '../utils/imageCompression'
 import { blobToDataURL, toFile } from '../utils/blobUtils'
 import ImageEditor from '../components/ImageEditor.vue'
@@ -262,6 +288,7 @@ import SyncIndicator from '../components/SyncIndicator.vue'
 import InfoEditSheet from '../components/InfoEditSheet.vue'
 import FeedItemSheet from '../components/FeedItemSheet.vue'
 import FeedEntry from '../components/FeedEntry.vue'
+import FinalizationForm from '../components/FinalizationForm.vue'
 import { getNextSequenceNumber, getBaseTitleSuggestions, formatSequenceNumber, getDisplayTitle } from '../utils/sequenceNumber'
 import { 
   getSelectedTrade, 
@@ -306,7 +333,9 @@ const form = ref({
   client_name: '',
   date: new Date().toISOString().slice(0, 16),
   status: 'In Progress',
-  sequence_number: null // Auto-generated when saving
+  sequence_number: null, // Auto-generated when saving
+  observations: '',
+  conclusion: ''
 })
 
 const photos = ref([])
@@ -352,6 +381,13 @@ const initialLoadComplete = ref(false)
 const selectedCategoryId = ref(null)
 const availableCategories = ref([])
 
+// Finalization form state
+const finalizationForm = ref({
+  show: false
+})
+const generatingPDF = ref(false)
+const finalizing = ref(false)
+
 // Computed: Filtered feed items
 const filteredFeedItems = computed(() => {
   if (feedFilter.value === 'all') return feedItems.value
@@ -387,7 +423,10 @@ async function loadIntervention() {
         form.value = {
           client_name: intervention.client_name || '',
           date: intervention.date ? new Date(intervention.date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
-          status: intervention.status || 'In Progress'
+          status: intervention.status || 'In Progress',
+          sequence_number: intervention.sequence_number || null,
+          observations: intervention.observations || '',
+          conclusion: intervention.conclusion || ''
         }
 
         // Load photos (still separate table)
@@ -1346,6 +1385,73 @@ function selectCategoryForSheet(categoryId) {
   selectedCategoryId.value = categoryId
 }
 
+function openFinalizationForm() {
+  finalizationForm.value.show = true
+}
+
+async function handleFinalize() {
+  finalizing.value = true
+  try {
+    // Update status to Completed
+    form.value.status = 'Completed'
+    
+    // Save intervention with updated status and observations/conclusion
+    await saveInterventionLocal()
+    
+    // Close the form
+    finalizationForm.value.show = false
+    
+    // Show success message or navigate
+    // Optionally trigger sync
+    if (initialLoadComplete.value) {
+      autoSave()
+    }
+  } catch (error) {
+    console.error('Error finalizing intervention:', error)
+    alert('Erreur lors de la finalisation. Veuillez réessayer.')
+  } finally {
+    finalizing.value = false
+  }
+}
+
+async function handleGeneratePDF() {
+  generatingPDF.value = true
+  try {
+    // Ensure we have the latest data
+    await saveInterventionLocal()
+    
+    // Get current intervention data
+    const interventionId = loadedInterventionId.value || route.params.id || tempInterventionId.value
+    if (!interventionId) {
+      alert('Impossible de générer le PDF: intervention non trouvée.')
+      return
+    }
+    
+    const intervention = await db.interventions.get(interventionId)
+    if (!intervention) {
+      alert('Impossible de générer le PDF: intervention non trouvée.')
+      return
+    }
+    
+    // Load photos
+    const photosForPdf = await db.photos
+      .where('intervention_id').equals(interventionId)
+      .toArray()
+    
+    // Generate PDF
+    const doc = await generatePDF(intervention, feedItems.value, photosForPdf)
+    
+    // Download PDF
+    const filename = `intervention_${intervention.client_name || 'unnamed'}_${new Date(intervention.date).toISOString().split('T')[0]}.pdf`
+    doc.save(filename)
+  } catch (error) {
+    console.error('Error generating PDF:', error)
+    alert('Erreur lors de la génération du PDF. Veuillez réessayer.')
+  } finally {
+    generatingPDF.value = false
+  }
+}
+
 
 async function saveFeedSheet() {
   if (feedSheet.value.type === 'text' && !feedSheetTextInput.value.trim()) return
@@ -1599,6 +1705,8 @@ async function saveInterventionLocal() {
       sequence_number: sequenceNumber, // Auto-computed sequence number
       date: new Date(form.value.date).toISOString(),
       status: form.value.status,
+      observations: form.value.observations || '',
+      conclusion: form.value.conclusion || '',
       // Preserve created_at if editing, otherwise use now
       created_at: existingIntervention?.created_at || now,
       updated_at: now,
