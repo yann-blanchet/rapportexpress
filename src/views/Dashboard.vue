@@ -21,103 +21,14 @@
 
     <!-- Filters and Search - Fixed below header -->
     <div 
-      class="absolute left-0 right-0 overflow-hidden bg-base-200"
+      class="absolute left-0 right-0 bg-base-200 z-40"
       :style="{ top: `${headerHeight}px` }"
       ref="filtersRef"
     >
       <div class="px-4 py-2">
-        <!-- Time Period Tabs - Join Component -->
-        <div class="flex justify-center mb-2">
-          <div class="join w-fit">
-            <button
-              @click="periodFilter = 'All'"
-              :class="[
-                'join-item btn btn-xs font-medium px-3 h-7',
-                periodFilter === 'All' 
-                  ? 'btn-success text-white' 
-                  : 'bg-base-100 text-base-content border-base-300'
-              ]"
-            >
-              All
-            </button>
-            <button
-              @click="periodFilter = 'today'"
-              :class="[
-                'join-item btn btn-xs font-medium px-3 h-7',
-                periodFilter === 'today' 
-                  ? 'btn-success text-white' 
-                  : 'bg-base-100 text-base-content border-base-300'
-              ]"
-            >
-              Today
-            </button>
-            <button
-              @click="periodFilter = 'thisWeek'"
-              :class="[
-                'join-item btn btn-xs font-medium px-3 h-7',
-                periodFilter === 'thisWeek' 
-                  ? 'btn-success text-white' 
-                  : 'bg-base-100 text-base-content border-base-300'
-              ]"
-            >
-              This Week
-            </button>
-            <button
-              @click="periodFilter = 'thisMonth'"
-              :class="[
-                'join-item btn btn-xs font-medium px-3 h-7',
-                periodFilter === 'thisMonth' 
-                  ? 'btn-success text-white' 
-                  : 'bg-base-100 text-base-content border-base-300'
-              ]"
-            >
-              This Month
-            </button>
-          </div>
-        </div>
-
-        <!-- Status Filter Buttons - Join Component -->
-        <div class="flex justify-center mb-2">
-          <div class="join w-fit">
-            <button
-              @click="statusFilter = 'All'"
-              :class="[
-                'join-item btn btn-xs font-medium px-3 h-7',
-                statusFilter === 'All' 
-                  ? 'btn-success text-white' 
-                  : 'bg-base-100 text-base-content border-base-300'
-              ]"
-            >
-              All
-            </button>
-            <button
-              @click="statusFilter = 'In Progress'"
-              :class="[
-                'join-item btn btn-xs font-medium px-3 h-7',
-                statusFilter === 'In Progress' 
-                  ? 'btn-success text-white' 
-                  : 'bg-base-100 text-base-content border-base-300'
-              ]"
-            >
-              In Progress
-            </button>
-            <button
-              @click="statusFilter = 'Completed'"
-              :class="[
-                'join-item btn btn-xs font-medium px-3 h-7',
-                statusFilter === 'Completed' 
-                  ? 'btn-success text-white' 
-                  : 'bg-base-100 text-base-content border-base-300'
-              ]"
-            >
-              Completed
-            </button>
-          </div>
-        </div>
-
-        <!-- Search Bar -->
-        <div class="mb-2">
-          <div class="relative">
+        <!-- Search Bar + Filter Toggle -->
+        <div class="mb-2 flex items-center gap-2">
+          <div class="relative flex-1">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -128,9 +39,132 @@
               class="input input-bordered w-full pl-10 input-sm"
             />
           </div>
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm px-2"
+            @click="showFilters = !showFilters"
+            :aria-pressed="showFilters"
+            title="Toggle filters"
+          >
+            <svg v-if="!showFilters" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 8h16M5 12h14M6 16h12M7 20h10" />
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Filters Content -->
+        <div v-if="showFilters" class="bg-base-100 rounded-lg p-3 space-y-3 mb-2">
+            <!-- Date Period Filter -->
+            <div>
+              <h4 class="font-semibold text-xs mb-1">Date</h4>
+              <div class="join w-full">
+                <button
+                  @click="periodFilter = 'All'"
+                  :class="[
+                    'join-item btn btn-xs flex-1',
+                    periodFilter === 'All' 
+                      ? 'btn-success text-white' 
+                      : 'btn-outline'
+                  ]"
+                >
+                  All
+                </button>
+                <button
+                  @click="periodFilter = 'today'"
+                  :class="[
+                    'join-item btn btn-xs flex-1',
+                    periodFilter === 'today' 
+                      ? 'btn-success text-white' 
+                      : 'btn-outline'
+                  ]"
+                >
+                  Today
+                </button>
+                <button
+                  @click="periodFilter = 'thisWeek'"
+                  :class="[
+                    'join-item btn btn-xs flex-1',
+                    periodFilter === 'thisWeek' 
+                      ? 'btn-success text-white' 
+                      : 'btn-outline'
+                  ]"
+                >
+                  This Week
+                </button>
+                <button
+                  @click="periodFilter = 'thisMonth'"
+                  :class="[
+                    'join-item btn btn-xs flex-1',
+                    periodFilter === 'thisMonth' 
+                      ? 'btn-success text-white' 
+                      : 'btn-outline'
+                  ]"
+                >
+                  This Month
+                </button>
+              </div>
+            </div>
+
+            <!-- Status Filter -->
+            <div>
+              <h4 class="font-semibold text-xs mb-1">Status</h4>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  @click="statusFilter = 'All'"
+                  :class="[
+                    'btn btn-xs',
+                    statusFilter === 'All' ? 'btn-success text-white' : 'btn-outline'
+                  ]"
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  @click="statusFilter = 'In Progress'"
+                  :class="[
+                    'btn btn-xs',
+                    statusFilter === 'In Progress' ? 'btn-success text-white' : 'btn-outline'
+                  ]"
+                >
+                  In Progress
+                </button>
+                <button
+                  type="button"
+                  @click="statusFilter = 'Completed'"
+                  :class="[
+                    'btn btn-xs',
+                    statusFilter === 'Completed' ? 'btn-success text-white' : 'btn-outline'
+                  ]"
+                >
+                  Completed
+                </button>
+              </div>
+            </div>
+
+            <!-- Category Filter -->
+            <div v-if="filterCategories.length > 0">
+              <h4 class="font-semibold text-xs mb-1">Category</h4>
+              <select
+                v-model="categoryFilter"
+                class="select select-bordered select-xs w-full"
+              >
+                <option value="All">All categories</option>
+                <option
+                  v-for="category in filterCategories"
+                  :key="category.id"
+                  :value="category.id"
+                >
+                  {{ category.name }}
+                </option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
 
     <!-- Interventions List - Scrollable -->
     <div 
@@ -344,11 +378,12 @@
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, onActivated, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { db } from '../db/indexeddb'
 import SyncIndicator from '../components/SyncIndicator.vue'
@@ -356,6 +391,7 @@ import { generateUUID } from '../utils/uuid'
 import { generatePDF } from '../services/pdf'
 import { deleteInterventionFromCloud } from '../services/supabase'
 import { getNextSequenceNumber, getDisplayTitle } from '../utils/sequenceNumber'
+import { getSelectedTrade, getCategoriesForTrade, TRADES } from '../utils/categories'
 
 // Component name for keep-alive
 defineOptions({
@@ -368,8 +404,7 @@ const loading = ref(true)
 const searchQuery = ref('')
 const statusFilter = ref('All') // Changed default to 'All' to show all interventions
 const periodFilter = ref('All') // Changed default to 'All' to show all interventions
-const dateFrom = ref('')
-const dateTo = ref('')
+const categoryFilter = ref('All')
 
 // Context menu state
 const contextMenu = ref({
@@ -396,8 +431,12 @@ const deleting = ref(false)
 const headerRef = ref(null)
 const filtersRef = ref(null)
 const headerHeight = ref(64) // Default height
-const filtersHeight = ref(180) // Default height for filters + search
+const filtersHeight = ref(60) // Default height for search bar only
 const bottomBarHeight = ref(80) // Default height for bottom menu bar
+
+const filterCategories = ref([])
+const showFilters = ref(false)
+let accordionObserver = null
 
 // Long-press detection
 let touchTimer = null
@@ -420,7 +459,7 @@ const filteredInterventions = computed(() => {
   }
 
   // Period/Date range filter
-  if (periodFilter.value && periodFilter.value !== 'All' && periodFilter.value !== 'custom') {
+  if (periodFilter.value && periodFilter.value !== 'All') {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     
@@ -462,16 +501,13 @@ const filteredInterventions = computed(() => {
       const interventionDate = new Date(i.date)
       return interventionDate >= startDate && interventionDate <= endDate
     })
-  } else if (periodFilter.value === 'custom' && (dateFrom.value || dateTo.value)) {
-    // Custom date range
-    const from = dateFrom.value ? new Date(dateFrom.value) : new Date(0)
-    from.setHours(0, 0, 0, 0)
-    const to = dateTo.value ? new Date(dateTo.value) : new Date()
-    to.setHours(23, 59, 59, 999)
-    
+  }
+
+  // Category filter (based on feed item categories)
+  if (categoryFilter.value && categoryFilter.value !== 'All') {
     filtered = filtered.filter(i => {
-      const interventionDate = new Date(i.date)
-      return interventionDate >= from && interventionDate <= to
+      const items = Array.isArray(i.feed_items) ? i.feed_items : []
+      return items.some(item => item.category === categoryFilter.value)
     })
   }
 
@@ -482,6 +518,31 @@ const filteredInterventions = computed(() => {
 let isLoadingInterventions = false
 let lastLoadTime = 0
 const LOAD_DEBOUNCE_MS = 1000 // Prevent loads within 1 second of each other
+
+function resetFilters() {
+  searchQuery.value = ''
+  statusFilter.value = 'All'
+  periodFilter.value = 'All'
+  categoryFilter.value = 'All'
+}
+
+function updateFiltersHeight() {
+  nextTick(() => {
+    if (filtersRef.value) {
+      filtersHeight.value = filtersRef.value.offsetHeight
+    }
+  })
+}
+
+function loadFilterCategories() {
+  try {
+    const trade = getSelectedTrade() || TRADES.GENERAL
+    filterCategories.value = getCategoriesForTrade(trade) || []
+  } catch (error) {
+    console.warn('Failed to load filter categories:', error)
+    filterCategories.value = getCategoriesForTrade(TRADES.GENERAL) || []
+  }
+}
 
 async function loadInterventions() {
   // Prevent concurrent loads
@@ -824,13 +885,6 @@ async function deleteInterventionFromList(intervention) {
   }
 }
 
-function updateDateFilterFromPeriod() {
-  // Clear custom date inputs when switching away from custom
-  if (periodFilter.value !== 'custom') {
-    dateFrom.value = ''
-    dateTo.value = ''
-  }
-}
 
 // Track if we're in the initial mount phase (first 3 seconds)
 let initialMountTime = Date.now()
@@ -865,15 +919,23 @@ onMounted(() => {
   
   // Listen for sync completion events
   window.addEventListener('syncCompleted', handleSyncCompleted)
+
+  // Load categories for filter sheet
+  loadFilterCategories()
   
   // Measure header and filters heights
   nextTick(() => {
     if (headerRef.value) {
       headerHeight.value = headerRef.value.offsetHeight
     }
-    if (filtersRef.value) {
-      filtersHeight.value = filtersRef.value.offsetHeight
-    }
+    updateFiltersHeight()
+  })
+  
+  // Watch for filter visibility changes
+  watch(showFilters, () => {
+    nextTick(() => {
+      updateFiltersHeight()
+    })
   })
   
   // Load interventions on mount
@@ -900,6 +962,11 @@ onUnmounted(() => {
   
   // Clean up event listener
   window.removeEventListener('syncCompleted', handleSyncCompleted)
+  
+  // Clean up observer
+  if (accordionObserver) {
+    accordionObserver.disconnect()
+  }
   // Don't reset hasLoadedInitially - keep it true for next mount
 })
 </script>
