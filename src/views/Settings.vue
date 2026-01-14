@@ -52,6 +52,13 @@
       <div class="card-body">
         <!-- Profile Tab -->
         <div v-show="activeTab === 'profile'" class="space-y-4">
+          <!-- Logout -->
+          <button @click="logout" class="btn btn-error btn-sm w-full">
+            Logout
+          </button>
+
+          <div class="divider my-2"></div>
+
           <!-- Theme Settings -->
           <div>
             <label class="label py-1">
@@ -167,13 +174,6 @@
 
           <button @click="goToProfileEdit" class="btn btn-success btn-sm w-full">
             Edit Profile
-          </button>
-
-          <div class="divider my-2"></div>
-
-          <!-- Logout -->
-          <button @click="logout" class="btn btn-error btn-sm w-full">
-            Logout
           </button>
         </div>
 

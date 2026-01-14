@@ -227,10 +227,13 @@
           class="btn btn-primary flex-1"
           :disabled="isSaveDisabled"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg v-if="mode === 'add'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
           </svg>
-          Add
+          <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          {{ mode === 'add' ? 'Add' : 'Save' }}
         </button>
       </div>
     </div>
@@ -242,6 +245,11 @@ import { ref, computed, watch, nextTick } from 'vue'
 import AudioDictation from './AudioDictation.vue'
 
 const props = defineProps({
+  mode: {
+    type: String,
+    default: 'add',
+    validator: (value) => ['add', 'edit'].includes(value)
+  },
   modelValue: {
     type: Boolean,
     required: true
@@ -304,13 +312,13 @@ const title = computed(() => {
   if (!props.type) return 'Add Item'
   switch (props.type) {
     case 'text':
-      return 'Add Text'
+      return props.mode === 'edit' ? 'Edit Text' : 'Add Text'
     case 'photo':
-      return 'Add Image'
+      return props.mode === 'edit' ? 'Edit Image' : 'Add Image'
     case 'audio':
-      return 'Add Audio'
+      return props.mode === 'edit' ? 'Edit Audio' : 'Add Audio'
     default:
-      return 'Add Item'
+      return props.mode === 'edit' ? 'Edit Item' : 'Add Item'
   }
 })
 
@@ -323,6 +331,7 @@ const isSaveDisabled = computed(() => {
     return !props.audioTranscription
   }
   if (props.type === 'photo') {
+    // In edit mode we may already have an existing preview
     return !props.imagePreview
   }
   return false

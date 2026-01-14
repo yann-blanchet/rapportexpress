@@ -4,71 +4,78 @@
     <div class="fixed top-0 left-0 right-0 z-50 safe-area-top bg-base-100/95 backdrop-blur-xl border-b-2 border-base-300" ref="headerRef">
       <!-- Content -->
       <div class="container mx-auto px-4 py-3">
-        <!-- First Line: Back Button, Client Name, Sync Indicator -->
-        <div class="flex items-center justify-between gap-3 mb-2">
-          <div class="flex items-center gap-3 flex-1 min-w-0">
-            <!-- Back Button -->
-            <router-link to="/" class="btn btn-ghost btn-circle btn-sm flex-shrink-0">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-            </router-link>
+        <!-- Header with Back Button on Left, Content on Right -->
+        <div class="flex items-start gap-3">
+          <!-- Back Button (vertical center aligned) -->
+          <router-link to="/" class="btn btn-ghost btn-circle flex-shrink-0 mt-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </router-link>
 
-            <!-- Client Name -->
-            <button
-              type="button"
-              @click="openInfoSheet"
-              class="text-left flex-1 min-w-0"
-            >
-              <div class="text-lg font-bold truncate">
-                {{ form.client_name || 'Tap to add' }}
-              </div>
-            </button>
-          </div>
+          <!-- Right Side: Two Lines -->
+          <div class="flex-1 min-w-0">
+            <!-- First Line: Client Name, Sync Indicator -->
+            <div class="flex items-center justify-between gap-3 mb-2">
+              <!-- Client Name -->
+              <button
+                type="button"
+                @click="openInfoSheet"
+                class="text-left flex-1 min-w-0"
+                :disabled="onboarding.show"
+              >
+                <div class="text-lg font-bold truncate">
+                  {{ form.client_name || 'Tap to add' }}
+                </div>
+              </button>
 
-          <!-- Sync Indicator -->
-          <div class="flex-shrink-0">
-            <SyncIndicator />
-          </div>
-        </div>
-
-        <!-- Second Line: Date, Sequence Number (left) | Status (right) -->
-        <div class="flex items-center justify-between gap-3">
-          <div class="flex items-center gap-3">
-            <!-- Date -->
-            <button
-              type="button"
-              @click="openInfoSheet"
-              class="text-left flex-shrink-0"
-            >
-              <div class="text-sm font-medium">
-                {{ formatDateForDisplay(form.date) }}
-              </div>
-            </button>
-
-            <!-- Sequence Number (if exists) -->
-            <div v-if="form.sequence_number" class="flex-shrink-0">
-              <div class="badge badge-outline">
-                {{ formatSequenceNumber(form.sequence_number) }}
+              <!-- Sync Indicator -->
+              <div class="flex-shrink-0">
+                <SyncIndicator />
               </div>
             </div>
-          </div>
 
-          <!-- Status -->
-          <button
-            type="button"
-            @click="openInfoSheet"
-            class="flex-shrink-0"
-          >
-            <div
-              :class="[
-                'badge',
-                form.status === 'Completed' ? 'badge-success' : 'badge-warning'
-              ]"
-            >
-              {{ form.status || 'In Progress' }}
+            <!-- Second Line: Date, Sequence Number (left) | Status (right) -->
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <!-- Date -->
+                <button
+                  type="button"
+                  @click="openInfoSheet"
+                  class="text-left flex-shrink-0"
+                  :disabled="onboarding.show"
+                >
+                  <div class="text-sm font-medium">
+                    {{ formatDateForDisplay(form.date) }}
+                  </div>
+                </button>
+
+                <!-- Sequence Number (if exists) -->
+                <div v-if="form.sequence_number" class="flex-shrink-0">
+                  <div class="badge badge-outline">
+                    {{ formatSequenceNumber(form.sequence_number) }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Status -->
+              <button
+                type="button"
+                @click="openInfoSheet"
+                class="flex-shrink-0"
+                :disabled="onboarding.show"
+              >
+                <div
+                  :class="[
+                    'badge',
+                    form.status === 'Completed' ? 'badge-success' : 'badge-warning'
+                  ]"
+                >
+                  {{ form.status || 'In Progress' }}
+                </div>
+              </button>
             </div>
-          </button>
+          </div>
         </div>
       </div>
     </div>
@@ -77,6 +84,7 @@
     <div 
       class="absolute left-0 right-0 overflow-hidden"
       :style="{ top: `${headerHeight}px`, bottom: `${bottomBarHeight}px` }"
+      :class="{ 'pointer-events-none opacity-50': onboarding.show }"
     >
       <div class="h-full w-full overflow-y-auto px-4 py-4" style="overscroll-behavior: contain; -webkit-overflow-scrolling: touch;">
         <!-- Feed Entries (WhatsApp-style) -->
@@ -88,6 +96,7 @@
             :category-name="entry.category ? getCategoryName(entry.category) : ''"
             :photo="entry.type === 'photo' ? getPhotoById(entry.photo_id) : null"
             :photo-url="entry.type === 'photo' && getPhotoById(entry.photo_id) ? getPhotoUrlSync(getPhotoById(entry.photo_id)) : ''"
+            @edit="openEditFeedItem(entry)"
             @delete="deleteEntry(entry)"
             @show-menu="showEntryMenu($event, entry)"
             @view-photo="openPhotoViewer(entry.photo_id)"
@@ -174,7 +183,11 @@
     </div>
 
     <!-- Bottom Menu Bar -->
-    <div class="fixed bottom-0 left-0 right-0 z-40 safe-area-bottom bg-base-100 border-t border-base-300" ref="bottomBarRef">
+    <div 
+      class="fixed bottom-0 left-0 right-0 z-40 safe-area-bottom bg-base-100 border-t border-base-300" 
+      ref="bottomBarRef"
+      :class="{ 'pointer-events-none opacity-50': onboarding.show }"
+    >
       <div class="max-w-md mx-auto px-4 py-3">
         <div class="flex items-center justify-around gap-2">
           <!-- Text Button -->
@@ -183,6 +196,7 @@
             @click="openFeedSheet('text')"
             class="btn btn-ghost btn-circle"
             title="Add Text"
+            :disabled="onboarding.show"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -195,6 +209,7 @@
             @click="openImagePicker"
             class="btn btn-ghost btn-circle"
             title="Add Image"
+            :disabled="onboarding.show"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -207,6 +222,7 @@
             @click="openFeedSheet('audio')"
             class="btn btn-ghost btn-circle"
             title="Add Audio"
+            :disabled="onboarding.show"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
@@ -219,6 +235,7 @@
             @click="openFinalizationForm"
             class="btn btn-ghost btn-circle"
             title="Finaliser"
+            :disabled="onboarding.show"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -233,6 +250,7 @@
     <FeedItemSheet
       v-if="feedSheet.show && feedSheet.type"
       v-model="feedSheet.show"
+      :mode="feedSheet.mode || 'add'"
       :type="feedSheet.type"
       :available-categories="availableCategories"
       :selected-category-id="feedSheetCategoryId"
@@ -262,6 +280,77 @@
       @generate-pdf="handleGeneratePDF"
       @finalize="handleFinalize"
     />
+
+    <!-- Onboarding Modal - Set Name for New Intervention -->
+    <Teleport to="body">
+      <div
+        v-if="onboarding.show"
+        class="fixed inset-0 z-[100] flex items-center justify-center"
+        style="z-index: 100000 !important;"
+      >
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/50" @click.stop></div>
+        
+        <!-- Modal Content -->
+        <div class="relative bg-base-100 rounded-2xl w-full max-w-md mx-4 shadow-2xl" @click.stop>
+          <div class="p-6">
+            <h2 class="text-2xl font-bold mb-2">New Intervention</h2>
+            <p class="text-base-content/70 mb-6">
+              Please enter the client or site name to get started.
+            </p>
+            
+            <div class="form-control mb-6">
+              <label class="label">
+                <span class="label-text font-semibold">Client/Site Name</span>
+              </label>
+              <div class="relative" @click.stop>
+                <input
+                  type="text"
+                  v-model="onboardingNameInput"
+                  @input="handleOnboardingNameInput"
+                  @focus="onboardingShowSuggestions = true"
+                  @blur="handleOnboardingNameBlur"
+                  @keydown.enter="handleOnboardingSubmit"
+                  placeholder="Enter client or site name"
+                  class="input input-bordered w-full"
+                  autofocus
+                />
+                <!-- Suggestions Dropdown -->
+                <div
+                  v-if="onboardingShowSuggestions && onboardingFilteredSuggestions.length > 0"
+                  class="absolute z-10 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                >
+                  <button
+                    v-for="title in onboardingFilteredSuggestions"
+                    :key="title"
+                    type="button"
+                    @click="selectOnboardingTitle(title)"
+                    class="w-full text-left px-4 py-2 hover:bg-base-200 transition-colors"
+                  >
+                    {{ title }}
+                  </button>
+                </div>
+              </div>
+              <div class="label">
+                <span class="label-text-alt text-base-content/60">
+                  Type to see suggestions from recent reports
+                </span>
+              </div>
+            </div>
+            
+            <div class="flex gap-3">
+              <button
+                @click="handleOnboardingSubmit"
+                class="btn btn-success flex-1"
+                :disabled="!onboardingNameInput.trim()"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Hidden Image Input -->
     <input
@@ -358,7 +447,8 @@ const feedFilter = ref('all') // 'all' | 'check' | 'note' | 'photo'
 // Feed Sheet State
 const feedSheet = ref({
   show: false,
-  type: null // 'text', 'photo', 'audio'
+  type: null, // 'text', 'photo', 'audio'
+  mode: 'add' // 'add' | 'edit'
 })
 const feedSheetTextInput = ref('')
 const feedSheetCategoryId = ref(null)
@@ -368,6 +458,9 @@ const feedSheetImagePreview = ref(null)
 const feedSheetAudioTranscription = ref('')
 const isTranscribingAudio = ref(false)
 const feedPhotoInput = ref(null)
+
+// Feed item edit state
+const editingFeedItemId = ref(null)
 
 // Auto-save state
 const autoSaving = ref(false)
@@ -390,6 +483,14 @@ const finalizationForm = ref({
 })
 const generatingPDF = ref(false)
 const finalizing = ref(false)
+
+// Onboarding state (for new interventions)
+const onboarding = ref({
+  show: false
+})
+const onboardingNameInput = ref('')
+const onboardingShowSuggestions = ref(false)
+const onboardingFilteredSuggestions = ref([])
 
 // Computed: Filtered feed items
 const filteredFeedItems = computed(() => {
@@ -584,8 +685,16 @@ async function loadIntervention() {
     loadedInterventionId.value = null
   }
   
-  // Load base title suggestions
+  // Load base title suggestions (needed for both edit and new interventions)
   await loadBaseTitleSuggestions()
+  
+  // Show onboarding for new interventions if name is not set
+  if (!route.params.id && (!form.value.client_name || !form.value.client_name.trim())) {
+    onboarding.value.show = true
+    onboardingNameInput.value = ''
+    // Initialize filtered suggestions with all suggestions
+    onboardingFilteredSuggestions.value = baseTitleSuggestions.value
+  }
   
   // Load categories based on selected trade
   loadCategories()
@@ -1359,8 +1468,10 @@ function openFeedSheet(type) {
   
   feedSheet.value = {
     show: true,
-    type: type
+    type: type,
+    mode: 'add'
   }
+  editingFeedItemId.value = null
   
   feedSheetTextInput.value = ''
   feedSheetCompliance.value = 'na'
@@ -1372,8 +1483,10 @@ function openFeedSheet(type) {
 function closeFeedSheet() {
   feedSheet.value = {
     show: false,
-    type: null
+    type: null,
+    mode: 'add'
   }
+  editingFeedItemId.value = null
   feedSheetTextInput.value = ''
   feedSheetCompliance.value = 'na'
   feedSheetImageFile.value = null
@@ -1390,6 +1503,51 @@ function selectCategoryForSheet(categoryId) {
 
 function openFinalizationForm() {
   finalizationForm.value.show = true
+}
+
+function handleOnboardingNameInput() {
+  // Filter suggestions based on input
+  const query = onboardingNameInput.value.trim().toLowerCase()
+  if (!query) {
+    onboardingFilteredSuggestions.value = baseTitleSuggestions.value
+  } else {
+    onboardingFilteredSuggestions.value = baseTitleSuggestions.value.filter(title =>
+      title.toLowerCase().includes(query)
+    )
+  }
+}
+
+function handleOnboardingNameBlur() {
+  // Delay hiding suggestions to allow clicking on them
+  setTimeout(() => {
+    onboardingShowSuggestions.value = false
+  }, 200)
+}
+
+function selectOnboardingTitle(title) {
+  onboardingNameInput.value = title
+  onboardingShowSuggestions.value = false
+  // Auto-submit when selecting from suggestions
+  handleOnboardingSubmit()
+}
+
+function handleOnboardingSubmit() {
+  if (!onboardingNameInput.value.trim()) {
+    return
+  }
+  
+  // Set the client name
+  form.value.client_name = onboardingNameInput.value.trim()
+  
+  // Close onboarding
+  onboarding.value.show = false
+  onboardingShowSuggestions.value = false
+  
+  // Trigger auto-save to create the intervention
+  if (!tempInterventionId.value) {
+    tempInterventionId.value = generateUUID()
+  }
+  autoSave()
 }
 
 async function handleFinalize() {
@@ -1459,10 +1617,36 @@ async function handleGeneratePDF() {
 async function saveFeedSheet() {
   if (feedSheet.value.type === 'text' && !feedSheetTextInput.value.trim()) return
   if (feedSheet.value.type === 'audio' && !feedSheetAudioTranscription.value) return
-  if (feedSheet.value.type === 'photo' && !feedSheetImageFile.value) return
+  // In edit mode, photo may not have a new file selected
+  if (feedSheet.value.type === 'photo' && feedSheet.value.mode !== 'edit' && !feedSheetImageFile.value) return
   
   const categoryId = feedSheetCategoryId.value
   const compliance = feedSheetCompliance.value
+
+  // Edit existing item
+  if (feedSheet.value.mode === 'edit' && editingFeedItemId.value) {
+    const idx = feedItems.value.findIndex(i => i.id === editingFeedItemId.value)
+    if (idx !== -1) {
+      const existing = feedItems.value[idx]
+      const updated = {
+        ...existing,
+        category: categoryId,
+        compliance: compliance
+      }
+      if (existing.type === 'text') {
+        updated.text = feedSheetTextInput.value.trim()
+      } else if (existing.type === 'audio') {
+        updated.transcription = feedSheetAudioTranscription.value
+      }
+      // photo: keep photo_id, just update category/compliance
+      feedItems.value.splice(idx, 1, updated)
+    }
+    closeFeedSheet()
+    if (initialLoadComplete.value) {
+      autoSave()
+    }
+    return
+  }
   
   if (feedSheet.value.type === 'text') {
     const item = {
@@ -1503,6 +1687,33 @@ async function saveFeedSheet() {
 function openImagePicker() {
   if (feedPhotoInput.value) {
     feedPhotoInput.value.click()
+  }
+}
+
+async function openEditFeedItem(entry) {
+  if (!entry) return
+  // Don't open editor while onboarding is active
+  if (onboarding.value?.show) return
+
+  editingFeedItemId.value = entry.id
+  feedSheet.value.mode = 'edit'
+  feedSheet.value.type = entry.type
+  feedSheet.value.show = true
+
+  feedSheetCategoryId.value = entry.category || null
+  feedSheetCompliance.value = entry.compliance || 'na'
+
+  // Prefill type-specific fields
+  if (entry.type === 'text') {
+    feedSheetTextInput.value = entry.text || ''
+  } else if (entry.type === 'audio') {
+    feedSheetAudioTranscription.value = entry.transcription || ''
+    isTranscribingAudio.value = false
+  } else if (entry.type === 'photo') {
+    // No new file in edit mode; show preview of existing photo
+    feedSheetImageFile.value = null
+    const photo = getPhotoById(entry.photo_id)
+    feedSheetImagePreview.value = photo ? await getPhotoUrl(photo) : null
   }
 }
 

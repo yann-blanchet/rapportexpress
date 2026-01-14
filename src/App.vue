@@ -162,6 +162,13 @@ onMounted(async () => {
         console.warn('[App] Error loading profile on sign in:', error)
       }
       
+      // Trigger immediate sync from Supabase after login
+      if (window.triggerImmediateSync) {
+        setTimeout(() => {
+          window.triggerImmediateSync()
+        }, 500) // Small delay to ensure redirect happens first
+      }
+      
       // Redirect to dashboard or original destination
       const redirect = route.query.redirect || '/'
       router.push(redirect)

@@ -157,6 +157,34 @@ function restartAutoSync() {
 }
 
 /**
+ * Trigger immediate sync (useful after login)
+ */
+async function triggerImmediateSync() {
+  if (isSyncing || !navigator.onLine) {
+    return
+  }
+  
+  try {
+    isSyncing = true
+    window.dispatchEvent(new CustomEvent('syncStarted'))
+    
+    // First, pull data from cloud
+    const fromCloud = await syncFromCloud(db)
+    // Then, push local unsynced data to cloud
+    await performAutoSync()
+    
+    // Notify components that sync completed
+    window.dispatchEvent(new CustomEvent('syncCompleted', { 
+      detail: { fromCloud, toCloud: { interventions: 0 } } 
+    }))
+  } catch (error) {
+    console.error('[Auto Sync] Immediate sync error:', error)
+  } finally {
+    isSyncing = false
+  }
+}
+
+/**
  * Composable for automatic sync
  */
 export function useAutoSync() {
@@ -169,8 +197,9 @@ export function useAutoSync() {
     isInitialized = true
     startAutoSync()
     
-    // Expose restartAutoSync globally for Settings page
+    // Expose restartAutoSync and triggerImmediateSync globally
     window.restartAutoSync = restartAutoSync
+    window.triggerImmediateSync = triggerImmediateSync
     
     // Listen for online/offline events (only add once)
     if (!window.__autoSyncOnlineHandler) {
@@ -200,6 +229,7 @@ export function useAutoSync() {
     startAutoSync,
     stopAutoSync,
     restartAutoSync,
+    triggerImmediateSync,
     getSyncInterval
   }
 }

@@ -791,15 +791,9 @@ function handleSyncCompleted(event) {
     return
   }
   
-  // Only reload if sync actually brought in new data
-  const detail = event.detail || {}
-  const fromCloud = detail.fromCloud || {}
-  const toCloud = detail.toCloud || {}
-  const hasNewData = (fromCloud.interventions > 0 || fromCloud.photos > 0 || toCloud.interventions > 0)
-  
-  if (hasNewData) {
-    loadInterventions()
-  }
+  // Always reload after sync to ensure data appears (especially after login)
+  // This ensures synced data from Supabase is displayed
+  loadInterventions()
 }
 
 onMounted(() => {

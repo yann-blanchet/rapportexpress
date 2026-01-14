@@ -8,7 +8,10 @@
     <!-- Entry Content -->
     <div class="flex items-start">
       <!-- Entry Bubble -->
-      <div class="flex-1 bg-base-100 rounded-lg p-2 relative group">
+      <div
+        class="flex-1 bg-base-100 rounded-lg p-2 relative group cursor-pointer"
+        @click="$emit('edit')"
+      >
         <!-- Action buttons (3-dot menu and delete) -->
         <div class="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <!-- Delete button -->
@@ -47,7 +50,7 @@
               :src="photoUrl"
               alt="Photo"
               class="w-full max-w-xs rounded-lg cursor-pointer"
-              @click="$emit('view-photo')"
+              @click.stop="$emit('view-photo')"
               @error="$emit('image-error', $event)"
             />
             <div v-if="entry.status === 'uploading'" class="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center z-10">
@@ -139,7 +142,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['delete', 'show-menu', 'view-photo', 'image-error', 'touch-start', 'touch-end'])
+const emit = defineEmits(['edit', 'delete', 'show-menu', 'view-photo', 'image-error', 'touch-start', 'touch-end'])
 
 const formattedTime = computed(() => {
   if (!props.entry.created_at) return ''
