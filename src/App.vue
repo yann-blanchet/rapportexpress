@@ -23,13 +23,13 @@
           to="/"
           class="flex flex-col items-center justify-center gap-1 px-4 py-1.5 rounded-xl transition-all duration-200 min-w-[60px] relative group"
           :class="$route.path === '/' || $route.path.startsWith('/interventions/') && $route.path !== '/interventions/new' 
-            ? 'text-primary scale-105' 
+            ? 'text-success scale-105' 
             : 'text-base-content/60 active:scale-95'"
         >
           <!-- Active indicator -->
           <div 
             v-if="$route.path === '/' || ($route.path.startsWith('/interventions/') && $route.path !== '/interventions/new')"
-            class="absolute inset-0 bg-primary/10 rounded-2xl"
+            class="absolute inset-0 bg-success/10 rounded-2xl"
           ></div>
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
@@ -72,13 +72,13 @@
           to="/settings"
           class="flex flex-col items-center justify-center gap-1 px-4 py-1.5 rounded-xl transition-all duration-200 min-w-[60px] relative group"
           :class="$route.path === '/settings' 
-            ? 'text-primary scale-105' 
+            ? 'text-success scale-105' 
             : 'text-base-content/60 active:scale-95'"
         >
           <!-- Active indicator -->
           <div 
             v-if="$route.path === '/settings'"
-            class="absolute inset-0 bg-primary/10 rounded-2xl"
+            class="absolute inset-0 bg-success/10 rounded-2xl"
           ></div>
           <svg 
             xmlns="http://www.w3.org/2000/svg" 

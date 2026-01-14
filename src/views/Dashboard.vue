@@ -47,10 +47,10 @@
             title="Toggle filters"
           >
             <svg v-if="!showFilters" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M4 8h16M5 12h14M6 16h12M7 20h10" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
             <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
             </svg>
           </button>
         </div>
@@ -144,24 +144,6 @@
                 </button>
               </div>
             </div>
-
-            <!-- Category Filter -->
-            <div v-if="filterCategories.length > 0">
-              <h4 class="font-semibold text-xs mb-1">Category</h4>
-              <select
-                v-model="categoryFilter"
-                class="select select-bordered select-xs w-full"
-              >
-                <option value="All">All categories</option>
-                <option
-                  v-for="category in filterCategories"
-                  :key="category.id"
-                  :value="category.id"
-                >
-                  {{ category.name }}
-                </option>
-              </select>
-            </div>
           </div>
         </div>
       </div>
@@ -189,7 +171,7 @@
             :key="intervention.id"
             class="bg-base-100 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer p-4"
             @click="goToDetail(intervention)"
-            @contextmenu.prevent="showContextMenu($event, intervention)"
+            @contextmenu.prevent="openActionSheet(intervention)"
             @touchstart="handleTouchStart(intervention, $event)"
             @touchend="handleTouchEnd"
           >
@@ -223,65 +205,22 @@
       </div>
     </div>
 
-    <!-- Context Menu -->
-    <div
-      v-if="contextMenu.show"
-      class="fixed bg-base-100 rounded-lg shadow-xl border border-base-300 z-50 min-w-[200px]"
-      :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
-      @click.stop
-    >
-      <div class="p-2">
-        <button
-          @click="createSimilarFromContextMenu"
-          class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-base-200 transition-colors text-left"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-base-content/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-          <span>Create Similar</span>
-        </button>
-        <button
-          @click="duplicateIntervention(contextMenu.intervention)"
-          class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-base-200 transition-colors text-left"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-base-content/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
-          <span>Duplicate Report</span>
-        </button>
-        <button
-          @click="deleteInterventionFromList(contextMenu.intervention)"
-          class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-base-200 transition-colors text-left text-error"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-          <span>Delete Report</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Backdrop to close context menu -->
-    <div
-      v-if="contextMenu.show"
-      class="fixed inset-0 z-40"
-      @click="contextMenu.show = false"
-    ></div>
-
     <!-- Action Bottom Sheet -->
-    <div
-      v-if="actionSheet.show"
-      class="fixed inset-0 z-[60] flex items-end"
-      @click="actionSheet.show = false"
-    >
-      <!-- Backdrop -->
-      <div class="absolute inset-0 bg-black/50" @click="actionSheet.show = false"></div>
-      
-      <!-- Sheet Content -->
+    <Teleport to="body">
       <div
-        class="relative bg-base-100 rounded-t-3xl w-full shadow-2xl safe-area-bottom"
-        @click.stop
+        v-if="actionSheet.show"
+        class="fixed inset-0 z-[100] flex items-end"
+        style="z-index: 100000 !important;"
+        @click="actionSheet.show = false"
       >
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/50" @click="actionSheet.show = false"></div>
+        
+        <!-- Sheet Content -->
+        <div
+          class="relative bg-base-100 rounded-t-3xl w-full shadow-2xl safe-area-bottom"
+          @click.stop
+        >
         <div class="p-4">
           <!-- Handle -->
           <div class="w-12 h-1 bg-base-300 rounded-full mx-auto mb-4"></div>
@@ -331,59 +270,63 @@
             </button>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- Delete Confirmation Bottom Sheet -->
-    <div
-      v-if="deleteConfirm.show"
-      class="fixed inset-0 z-[60] flex items-end"
-      @click="deleteConfirm.show = false"
-    >
-      <!-- Backdrop -->
-      <div class="absolute inset-0 bg-black/50" @click="deleteConfirm.show = false"></div>
-      
-      <!-- Sheet Content -->
+    <Teleport to="body">
       <div
-        class="relative bg-base-100 rounded-t-3xl w-full shadow-2xl safe-area-bottom"
-        @click.stop
+        v-if="deleteConfirm.show"
+        class="fixed inset-0 z-[100] flex items-end"
+        style="z-index: 100000 !important;"
+        @click="deleteConfirm.show = false"
       >
-        <div class="p-6">
-          <!-- Handle -->
-          <div class="w-12 h-1 bg-base-300 rounded-full mx-auto mb-6"></div>
-          
-          <h3 class="text-xl font-bold mb-2">
-            Delete report {{ deleteConfirm.intervention?.client_name || 'Unnamed Client' }}?
-          </h3>
-          <p class="text-base-content/70 mb-6">
-            Are you sure you want to delete this report? This action cannot be undone.
-          </p>
-          
-          <div class="flex gap-3">
-            <button
-              @click="deleteConfirm.show = false"
-              class="btn btn-ghost flex-1"
-            >
-              Cancel
-            </button>
-            <button
-              @click="confirmDelete"
-              class="btn btn-error flex-1"
-              :disabled="deleting"
-            >
-              <span v-if="deleting" class="loading loading-spinner loading-sm"></span>
-              {{ deleting ? 'Deleting...' : 'Delete' }}
-            </button>
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/50" @click="deleteConfirm.show = false"></div>
+        
+        <!-- Sheet Content -->
+        <div
+          class="relative bg-base-100 rounded-t-3xl w-full shadow-2xl safe-area-bottom"
+          @click.stop
+        >
+          <div class="p-6">
+            <!-- Handle -->
+            <div class="w-12 h-1 bg-base-300 rounded-full mx-auto mb-6"></div>
+            
+            <h3 class="text-xl font-bold mb-2">
+              Delete report {{ deleteConfirm.intervention?.client_name || 'Unnamed Client' }}?
+            </h3>
+            <p class="text-base-content/70 mb-6">
+              Are you sure you want to delete this report? This action cannot be undone.
+            </p>
+            
+            <div class="flex gap-3">
+              <button
+                @click="deleteConfirm.show = false"
+                class="btn btn-ghost flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                @click="confirmDelete"
+                class="btn btn-error flex-1"
+                :disabled="deleting"
+              >
+                <span v-if="deleting" class="loading loading-spinner loading-sm"></span>
+                {{ deleting ? 'Deleting...' : 'Delete' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, onActivated, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated, nextTick, watch, Teleport } from 'vue'
 import { useRouter } from 'vue-router'
 import { db } from '../db/indexeddb'
 import SyncIndicator from '../components/SyncIndicator.vue'
@@ -391,7 +334,6 @@ import { generateUUID } from '../utils/uuid'
 import { generatePDF } from '../services/pdf'
 import { deleteInterventionFromCloud } from '../services/supabase'
 import { getNextSequenceNumber, getDisplayTitle } from '../utils/sequenceNumber'
-import { getSelectedTrade, getCategoriesForTrade, TRADES } from '../utils/categories'
 
 // Component name for keep-alive
 defineOptions({
@@ -404,15 +346,6 @@ const loading = ref(true)
 const searchQuery = ref('')
 const statusFilter = ref('All') // Changed default to 'All' to show all interventions
 const periodFilter = ref('All') // Changed default to 'All' to show all interventions
-const categoryFilter = ref('All')
-
-// Context menu state
-const contextMenu = ref({
-  show: false,
-  x: 0,
-  y: 0,
-  intervention: null
-})
 
 const actionSheet = ref({
   show: false,
@@ -434,7 +367,6 @@ const headerHeight = ref(64) // Default height
 const filtersHeight = ref(60) // Default height for search bar only
 const bottomBarHeight = ref(80) // Default height for bottom menu bar
 
-const filterCategories = ref([])
 const showFilters = ref(false)
 let accordionObserver = null
 
@@ -503,14 +435,6 @@ const filteredInterventions = computed(() => {
     })
   }
 
-  // Category filter (based on feed item categories)
-  if (categoryFilter.value && categoryFilter.value !== 'All') {
-    filtered = filtered.filter(i => {
-      const items = Array.isArray(i.feed_items) ? i.feed_items : []
-      return items.some(item => item.category === categoryFilter.value)
-    })
-  }
-
   // Sort by date (newest first)
   return filtered.sort((a, b) => new Date(b.date) - new Date(a.date))
 })
@@ -523,7 +447,6 @@ function resetFilters() {
   searchQuery.value = ''
   statusFilter.value = 'All'
   periodFilter.value = 'All'
-  categoryFilter.value = 'All'
 }
 
 function updateFiltersHeight() {
@@ -534,15 +457,6 @@ function updateFiltersHeight() {
   })
 }
 
-function loadFilterCategories() {
-  try {
-    const trade = getSelectedTrade() || TRADES.GENERAL
-    filterCategories.value = getCategoriesForTrade(trade) || []
-  } catch (error) {
-    console.warn('Failed to load filter categories:', error)
-    filterCategories.value = getCategoriesForTrade(TRADES.GENERAL) || []
-  }
-}
 
 async function loadInterventions() {
   // Prevent concurrent loads
@@ -617,30 +531,16 @@ function formatDateShort(dateString) {
 }
 
 function goToDetail(intervention) {
-  if (!contextMenu.value.show) {
+  if (!actionSheet.value.show) {
     // Always go to edit form (which can be used for viewing too)
     router.push(`/interventions/${intervention.id}/edit`)
   }
 }
 
-function showContextMenu(event, intervention) {
-  contextMenu.value = {
-    show: true,
-    x: event.clientX,
-    y: event.clientY,
-    intervention
-  }
-}
-
 function handleTouchStart(intervention, event) {
   touchTimer = setTimeout(() => {
-    const touch = event.touches[0]
-    contextMenu.value = {
-      show: true,
-      x: touch.clientX,
-      y: touch.clientY,
-      intervention
-    }
+    // Open action sheet on long press (mobile-first)
+    openActionSheet(intervention)
     // Prevent default click action
     event.preventDefault()
   }, LONG_PRESS_DURATION)
@@ -696,12 +596,6 @@ async function createSimilarIntervention(intervention) {
     console.error('Error creating similar intervention:', error)
     alert('Error creating similar report. Please try again.')
   }
-}
-
-function createSimilarFromContextMenu() {
-  if (!contextMenu.value.intervention) return
-  contextMenu.value.show = false
-  createSimilarIntervention(contextMenu.value.intervention)
 }
 
 function handleDuplicate() {
@@ -816,6 +710,7 @@ function handleDelete() {
   deleteConfirm.value.show = true
 }
 
+
 async function confirmDelete() {
   if (!deleteConfirm.value.intervention) return
   
@@ -850,8 +745,6 @@ async function confirmDelete() {
 
 async function deleteInterventionFromList(intervention) {
   if (!intervention) return
-  
-  contextMenu.value.show = false
   
   const confirmed = confirm(
     `Are you sure you want to delete this report?\n\n` +
@@ -919,9 +812,6 @@ onMounted(() => {
   
   // Listen for sync completion events
   window.addEventListener('syncCompleted', handleSyncCompleted)
-
-  // Load categories for filter sheet
-  loadFilterCategories()
   
   // Measure header and filters heights
   nextTick(() => {

@@ -102,37 +102,16 @@
             </div>
           </div>
 
-          <!-- Trade Selection -->
-          <div>
-            <label class="label py-1">
-              <span class="label-text font-semibold">Trade / Job Type</span>
-            </label>
-            <select
-              v-model="selectedTrade"
-              @change="saveTrade"
-              class="select select-bordered select-sm w-full"
-            >
-              <option :value="null" disabled>Select a trade...</option>
-              <option
-                v-for="(name, id) in tradeNames"
-                :key="id"
-                :value="id"
-              >
-                {{ name }}
-              </option>
-            </select>
-          </div>
-
-          <!-- User Profile -->
+          <!-- User Profile (Readonly) -->
           <div>
             <label class="label py-1">
               <span class="label-text font-semibold">Name</span>
             </label>
             <input
               type="text"
-              v-model="profile.name"
-              placeholder="Your name"
-              class="input input-bordered input-sm w-full"
+              :value="profile.name || 'Not set'"
+              readonly
+              class="input input-bordered input-sm w-full bg-base-200"
             />
           </div>
 
@@ -142,39 +121,52 @@
             </label>
             <input
               type="email"
-              v-model="profile.email"
-              placeholder="your.email@example.com"
-              class="input input-bordered input-sm w-full"
+              :value="profile.email || 'Not set'"
+              readonly
+              class="input input-bordered input-sm w-full bg-base-200"
             />
           </div>
 
-          <!-- PDF Settings -->
+          <!-- Trade Selection (Readonly) -->
+          <div>
+            <label class="label py-1">
+              <span class="label-text font-semibold">Trade / Job Type</span>
+            </label>
+            <input
+              type="text"
+              :value="selectedTrade ? tradeNames[selectedTrade] : 'Not set'"
+              readonly
+              class="input input-bordered input-sm w-full bg-base-200"
+            />
+          </div>
+
+          <!-- PDF Settings (Readonly) -->
           <div>
             <label class="label py-1">
               <span class="label-text font-semibold">PDF Header Text</span>
             </label>
             <input
               type="text"
-              v-model="pdfSettings.header"
-              placeholder="Company name or header text"
-              class="input input-bordered input-sm w-full"
+              :value="pdfSettings.header || 'Not set'"
+              readonly
+              class="input input-bordered input-sm w-full bg-base-200"
             />
           </div>
 
           <div>
             <label class="label py-1">
-              <span class="label-text font-semibold">PDF Logo URL (optional)</span>
+              <span class="label-text font-semibold">PDF Logo URL</span>
             </label>
             <input
               type="url"
-              v-model="pdfSettings.logoUrl"
-              placeholder="https://example.com/logo.png"
-              class="input input-bordered input-sm w-full"
+              :value="pdfSettings.logoUrl || 'Not set'"
+              readonly
+              class="input input-bordered input-sm w-full bg-base-200"
             />
           </div>
 
-          <button @click="saveProfile" class="btn btn-primary btn-sm w-full">
-            Save Profile
+          <button @click="goToProfileEdit" class="btn btn-success btn-sm w-full">
+            Edit Profile
           </button>
 
           <div class="divider my-2"></div>
@@ -270,10 +262,13 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { db } from '../db/indexeddb'
 import { loadProfile, updateProfile } from '../services/profile'
 import SyncIndicator from '../components/SyncIndicator.vue'
 import { TRADES, TRADE_NAMES, getSelectedTrade, setSelectedTrade, loadTradeFromCloud } from '../utils/categories'
+
+const router = useRouter()
 
 // Layout refs and heights
 const headerRef = ref(null)
@@ -433,6 +428,10 @@ async function saveTrade() {
       alert('Trade saved locally. Will sync to cloud when online.')
     }
   }
+}
+
+function goToProfileEdit() {
+  router.push('/profile/edit')
 }
 
 async function saveProfile() {

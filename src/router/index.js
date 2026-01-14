@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
 import InterventionForm from '../views/InterventionForm.vue'
 import Settings from '../views/Settings.vue'
+import ProfileEdit from '../views/ProfileEdit.vue'
 import Login from '../views/Login.vue'
 import { getCurrentSession } from '../services/auth'
 
@@ -42,6 +43,12 @@ const router = createRouter({
       path: '/settings',
       name: 'Settings',
       component: Settings,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/profile/edit',
+      name: 'ProfileEdit',
+      component: ProfileEdit,
       meta: { requiresAuth: true }
     }
   ]
