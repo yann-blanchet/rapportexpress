@@ -13,7 +13,7 @@ Supabase might be sending a **magic link token** (long hash) instead of a **6-di
 ### Step 1: Check What's in Your Email ⚠️ CRITICAL
 
 **Check the email you received:**
-- Is it an 8-digit number? (e.g., `94235412`) ✅
+- Is it a 6-digit number? (e.g., `942354`) ✅
 - Or is it a long URL/link? (e.g., `https://.../auth/v1/verify?token=...`) ❌
 
 **If you see a URL/link:**
@@ -34,7 +34,7 @@ Supabase might be sending a **magic link token** (long hash) instead of a **6-di
 4. **Body (HTML) - CRITICAL:**
    ```html
    <h2>Your login code</h2>
-   <p>Your 8-digit code is: <strong>{{ .Token }}</strong></p>
+   <p>Your 6-digit code is: <strong>{{ .Token }}</strong></p>
    <p>Enter this code in the app to sign in.</p>
    <p>This code expires in 1 hour.</p>
    ```
@@ -43,7 +43,7 @@ Supabase might be sending a **magic link token** (long hash) instead of a **6-di
    ```
    Your login code
    
-   Your 8-digit code is: {{ .Token }}
+   Your 6-digit code is: {{ .Token }}
    
    Enter this code in the app to sign in.
    
@@ -75,11 +75,11 @@ Supabase might be sending a **magic link token** (long hash) instead of a **6-di
    - Click "Send Code"
 
 3. **Check your email**
-   - Should see: "Your 8-digit code is: **94235412**" (example)
+   - Should see: "Your 6-digit code is: **942354**" (example)
    - Should NOT see a URL/link
 
 4. **Enter the code immediately**
-   - Copy the 8-digit number
+   - Copy the 6-digit number
    - Paste it in the app
    - Click "Verify Code"
 
@@ -120,7 +120,7 @@ If you're still unsure, check the **raw email source**:
 ## Verification
 
 After fixing the template, you should:
-- ✅ Receive email with 8-digit code
+- ✅ Receive email with 6-digit code
 - ✅ Code works when entered immediately
 - ✅ No 403 errors
 - ✅ Successfully logged in

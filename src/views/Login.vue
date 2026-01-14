@@ -43,25 +43,25 @@
         <div v-if="step === 'otp'" class="space-y-4">
           <div class="text-center mb-4">
             <p class="text-sm text-base-content/70">
-              We sent an 8-digit code to
+              We sent a 6-digit code to
             </p>
             <p class="font-semibold mt-1">{{ email }}</p>
           </div>
 
           <div class="form-control">
             <label class="label">
-              <span class="label-text">Enter 8-digit code</span>
+              <span class="label-text">Enter 6-digit code</span>
             </label>
             <input
               type="text"
               v-model="otpCode"
               @input="handleOTPInput"
               @keydown.enter="handleVerifyOTP"
-              placeholder="00000000"
+              placeholder="000000"
               class="input input-bordered w-full text-center text-2xl tracking-widest font-mono"
               :class="{ 'input-error': otpError }"
               :disabled="verifying"
-              maxlength="8"
+              maxlength="6"
               autofocus
             />
             <label v-if="otpError" class="label">
@@ -69,7 +69,7 @@
             </label>
               <label v-else class="label">
                 <span class="label-text-alt text-base-content/60">
-                  Check your email for the 8-digit code
+                  Check your email for the 6-digit code
                 </span>
               </label>
           </div>
@@ -140,9 +140,9 @@ const isValidEmail = computed(() => {
   return emailRegex.test(email.value.trim())
 })
 
-// OTP validation (8 digits)
+// OTP validation (6 digits)
 const isValidOTP = computed(() => {
-  return /^\d{8}$/.test(otpCode.value)
+  return /^\d{6}$/.test(otpCode.value)
 })
 
 // Handle OTP input (only allow digits)
@@ -184,7 +184,7 @@ async function handleSendOTP() {
 // Verify OTP code
 async function handleVerifyOTP() {
   if (!isValidOTP.value) {
-    otpError.value = 'Please enter a valid 8-digit code'
+    otpError.value = 'Please enter a valid 6-digit code'
     return
   }
 

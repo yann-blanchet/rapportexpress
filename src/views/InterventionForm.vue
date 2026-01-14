@@ -3,8 +3,9 @@
     <!-- Header with Icon - Fixed at Top (matching Dashboard design) -->
     <div class="fixed top-0 left-0 right-0 z-50 safe-area-top bg-base-100/95 backdrop-blur-xl border-b-2 border-base-300" ref="headerRef">
       <!-- Content -->
-      <div class="container mx-auto px-4 py-4">
-        <div class="flex items-center justify-between gap-3">
+      <div class="container mx-auto px-4 py-3">
+        <!-- First Line: Back Button, Client Name, Sync Indicator -->
+        <div class="flex items-center justify-between gap-3 mb-2">
           <div class="flex items-center gap-3 flex-1 min-w-0">
             <!-- Back Button -->
             <router-link to="/" class="btn btn-ghost btn-circle btn-sm flex-shrink-0">
@@ -13,59 +14,61 @@
               </svg>
             </router-link>
 
-            <!-- Info Fields -->
-            <div class="flex items-center gap-3 flex-1 min-w-0 overflow-hidden">
-              <!-- Client Name -->
-              <button
-                type="button"
-                @click="openInfoSheet"
-                class="text-left flex-1 min-w-0"
-              >
-                <div class="text-lg font-bold truncate">
-                  {{ form.client_name || 'Tap to add' }}
-                </div>
-              </button>
-
-              <!-- Date -->
-              <button
-                type="button"
-                @click="openInfoSheet"
-                class="text-left flex-shrink-0"
-              >
-                <div class="text-sm font-medium">
-                  {{ formatDateForDisplay(form.date) }}
-                </div>
-              </button>
-
-              <!-- Status -->
-              <button
-                type="button"
-                @click="openInfoSheet"
-                class="flex-shrink-0"
-              >
-                <div
-                  :class="[
-                    'badge',
-                    form.status === 'Completed' ? 'badge-success' : 'badge-warning'
-                  ]"
-                >
-                  {{ form.status || 'In Progress' }}
-                </div>
-              </button>
-
-              <!-- Sequence Number (if exists) -->
-              <div v-if="form.sequence_number" class="flex-shrink-0">
-                <div class="badge badge-outline">
-                  {{ formatSequenceNumber(form.sequence_number) }}
-                </div>
+            <!-- Client Name -->
+            <button
+              type="button"
+              @click="openInfoSheet"
+              class="text-left flex-1 min-w-0"
+            >
+              <div class="text-lg font-bold truncate">
+                {{ form.client_name || 'Tap to add' }}
               </div>
-            </div>
+            </button>
           </div>
 
           <!-- Sync Indicator -->
           <div class="flex-shrink-0">
             <SyncIndicator />
           </div>
+        </div>
+
+        <!-- Second Line: Date, Sequence Number (left) | Status (right) -->
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <!-- Date -->
+            <button
+              type="button"
+              @click="openInfoSheet"
+              class="text-left flex-shrink-0"
+            >
+              <div class="text-sm font-medium">
+                {{ formatDateForDisplay(form.date) }}
+              </div>
+            </button>
+
+            <!-- Sequence Number (if exists) -->
+            <div v-if="form.sequence_number" class="flex-shrink-0">
+              <div class="badge badge-outline">
+                {{ formatSequenceNumber(form.sequence_number) }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Status -->
+          <button
+            type="button"
+            @click="openInfoSheet"
+            class="flex-shrink-0"
+          >
+            <div
+              :class="[
+                'badge',
+                form.status === 'Completed' ? 'badge-success' : 'badge-warning'
+              ]"
+            >
+              {{ form.status || 'In Progress' }}
+            </div>
+          </button>
         </div>
       </div>
     </div>

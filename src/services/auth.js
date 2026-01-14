@@ -4,7 +4,7 @@
  * Simple email-based OTP authentication using Supabase
  * - No passwords
  * - No magic-link redirects
- * - 8-digit OTP codes
+ * - 6-digit OTP codes (Supabase default)
  * - Persistent sessions
  */
 
@@ -72,7 +72,7 @@ export async function sendOTP(email) {
 /**
  * Verify OTP code and sign in
  * @param {string} email - User's email address
- * @param {string} token - 8-digit OTP code
+ * @param {string} token - 6-digit OTP code
  * @returns {Promise<{error: Error|null, data: any}>}
  */
 export async function verifyOTP(email, token) {
@@ -94,7 +94,7 @@ export async function verifyOTP(email, token) {
     console.log('[Auth] Token:', normalizedToken)
 
     // Verify OTP using Supabase
-    // The token is the 8-digit code from email
+    // The token is the 6-digit code from email
     // Important: email must match exactly what was used in signInWithOtp
     const { data, error } = await supabase.auth.verifyOtp({
       email: normalizedEmail,

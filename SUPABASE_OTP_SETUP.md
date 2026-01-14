@@ -16,7 +16,7 @@ Your login code
 **Body (HTML):**
 ```html
 <h2>Your login code</h2>
-<p>Your 8-digit code is: <strong>{{ .Token }}</strong></p>
+<p>Your 6-digit code is: <strong>{{ .Token }}</strong></p>
 <p>Enter this code in the app to sign in.</p>
 <p>This code expires in 1 hour.</p>
 <p>If you didn't request this code, you can safely ignore this email.</p>
@@ -26,7 +26,7 @@ Your login code
 ```
 Your login code
 
-Your 8-digit code is: {{ .Token }}
+Your 6-digit code is: {{ .Token }}
 
 Enter this code in the app to sign in.
 
@@ -39,7 +39,7 @@ If you didn't request this code, you can safely ignore this email.
 - ✅ `{{ .Token }}` is in the template (exactly as shown, case-sensitive)
 - ✅ Template is **saved** (click Save button)
 - ✅ You edited the **"Magic Link"** template (not "Change Email" or others)
-- ✅ The code appears as **8 digits** in the email (e.g., `94235412`)
+- ✅ The code appears as **6 digits** in the email (e.g., `942354`)
 - ✅ The code is **NOT a URL/link** (should be plain numbers)
 
 **How to verify it's working:**
@@ -123,9 +123,9 @@ If you didn't request this code, you can safely ignore this email.
 ### Issue: Code format incorrect
 
 **Verify:**
-- Code should be exactly 8 digits
+- Code should be exactly 6 digits
 - No spaces, dashes, or letters
-- Example: `84191512` ✅ (not `8419-1512` or `8419 1512`)
+- Example: `841915` ✅ (not `841-915` or `841 915`)
 
 ## Debugging
 

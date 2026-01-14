@@ -169,10 +169,15 @@ onMounted(async () => {
   })
 })
 
-// Hide bottom menu on intervention pages (create, edit, detail)
+// Hide bottom menu on intervention pages (create, edit, detail) and login
 const shouldShowMenu = computed(() => {
   const routeName = route.name
   const path = route.path || ''
+  
+  // Hide on login page
+  if (routeName === 'Login' || path === '/login') {
+    return false
+  }
   
   // Hide on create page
   if (routeName === 'NewIntervention' || path === '/interventions/new') {
